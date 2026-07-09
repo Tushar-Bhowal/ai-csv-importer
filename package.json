@@ -11,28 +11,26 @@
     "apps/*"
   ],
   "scripts": {
-    "prepare": "npm run build:core",
-    "build:core": "npm run build --workspace @groweasy/core",
-    "build": "npm run build:core && npm run build --workspace @groweasy/web",
-    "dev": "npm run build:core && concurrently -k -n core,api,web -c blue,green,magenta \"npm:dev:core\" \"npm:dev:api\" \"npm:dev:web\"",
-    "dev:core": "tsc -b packages/core --watch --preserveWatchOutput",
-    "dev:api": "npm run dev --workspace @groweasy/api",
-    "dev:web": "npm run dev --workspace @groweasy/web",
-    "typecheck": "npm run build:core && tsc -p tsconfig.test.json && tsc -p apps/api/tsconfig.json && tsc -p apps/web/tsconfig.json --noEmit",
+    "prepare": "npm run build -w @groweasy/core",
+    "dev": "npm run build -w @groweasy/core && concurrently -k \"npm:dev:*\"",
+    "dev:core": "npm run dev -w @groweasy/core",
+    "dev:api": "npm run dev -w @groweasy/api",
+    "dev:web": "npm run dev -w @groweasy/web",
+    "build": "npm run build -w @groweasy/core && npm run build -w @groweasy/web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "vitest run",
-    "test:watch": "vitest",
     "lint": "eslint .",
     "format": "prettier --write ."
   },
   "devDependencies": {
-    "@eslint/js": "^9.17.0",
-    "@types/node": "^22.10.2",
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^24.13.3",
     "concurrently": "^10.0.3",
-    "eslint": "^9.17.0",
-    "eslint-config-prettier": "^9.1.0",
-    "prettier": "^3.4.2",
-    "typescript": "^5.7.2",
-    "typescript-eslint": "^8.18.1",
+    "eslint": "^10.6.0",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.9.4",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.63.0",
     "vitest": "^4.1.10"
   }
 }

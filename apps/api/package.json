@@ -5,17 +5,17 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/dev.ts",
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc"
   },
   "dependencies": {
     "@groweasy/core": "*",
-    "cors": "^2.8.5",
-    "express": "^5.1.0",
-    "helmet": "^8.0.0"
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "helmet": "^8.2.0"
   },
   "devDependencies": {
-    "@types/cors": "^2.8.17",
-    "@types/express": "^5.0.0",
-    "tsx": "^4.19.2"
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "tsx": "^4.23.0"
   }
 }
