@@ -38,18 +38,16 @@ describe('coerceDate', () => {
     },
   )
 
-  it('CONTRACT: every non-empty output satisfies new Date()', () => {
-    const inputs = [
-      '2026-05-13 14:20:48',
-      '2026-05-13T14:20:48+05:30',
-      '13/05/2026',
-      '45678',
-      'May 13, 2026',
-      '2026/05/13',
-    ]
-    for (const input of inputs) {
-      const out = coerceDate(input, 'dd/MM/yyyy')
-      if (out !== '') expect(parses(out), `${input} → ${out}`).toBe(true)
-    }
+  it.each([
+    '2026-05-13 14:20:48',
+    '2026-05-13T14:20:48+05:30',
+    '13/05/2026',
+    '45678',
+    'May 13, 2026',
+    '2026/05/13',
+  ])('CONTRACT: %s produces a non-empty string that new Date() parses', (input) => {
+    const out = coerceDate(input, 'dd/MM/yyyy')
+    expect(out, `${input} must not be dropped`).not.toBe('')
+    expect(parses(out), `${input} → ${out}`).toBe(true)
   })
 })

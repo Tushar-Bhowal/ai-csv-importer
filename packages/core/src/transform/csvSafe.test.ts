@@ -15,6 +15,11 @@ describe('csvSafe', () => {
     expect(csvSafe('+1234')).toBe("'+1234")
     expect(csvSafe('-1+1')).toBe("'-1+1")
     expect(csvSafe('@SUM(A1)')).toBe("'@SUM(A1)")
+    expect(csvSafe('\t=SUM(A1)')).toBe("'\t=SUM(A1)")
+  })
+
+  it('escapes a leading carriage return before it can look like a trigger', () => {
+    expect(csvSafe('\r=SUM(A1)')).toBe('\\n=SUM(A1)')
   })
 
   it('leaves ordinary values untouched', () => {

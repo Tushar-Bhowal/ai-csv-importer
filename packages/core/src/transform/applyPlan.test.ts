@@ -18,6 +18,95 @@ const planFor = (csv: string): { plan: MappingPlan; rows: ReturnType<typeof pars
   }
 }
 
+// heuristicPlan deliberately never emits enum_map, concat, or a data_source
+// mapping — but an LLM-produced plan will. These hand-built plans cover the
+// branches that only Phase 2 exercises, before Phase 2 depends on them.
+const manualPlan = (columns: MappingPlan['columns']): MappingPlan => ({
+  columns,
+  noteColumns: [],
+  ignoreColumns: [],
+  headerRowIndex: 0,
+  defaultCountryCode: '+91',
+  degraded: false,
+})
+
+const col = (
+  target: MappingPlan['columns'][number]['target'],
+  sourceColumns: string[],
+  strategy: MappingPlan['columns'][number]['strategy'],
+  valueMap?: Record<string, string>,
+): MappingPlan['columns'][number] => ({
+  target,
+  sourceColumns,
+  strategy,
+  ...(valueMap ? { valueMap } : {}),
+  confidence: 1,
+  reasoning: 'test',
+})
+
+describe('applyPlan — strategies only an LLM plan produces', () => {
+  it('concat joins several source columns into one field', () => {
+    const { rows } = parseCsv('First Name,Last Name,Email\nRahil,Mohammad,r@test.com')
+    const plan = manualPlan([
+      col('name', ['First Name', 'Last Name'], 'concat'),
+      col('email', ['Email'], 'direct'),
+    ])
+
+    const [record] = applyPlan(rows, plan, IMPORTED_AT).records
+    expect(record?.name).toBe('Rahil Mohammad')
+  })
+
+  it('enum_map routes crm_status and data_source to their own coercers, not each other', () => {
+    const { rows } = parseCsv('Email,Stage,Project\nr@test.com,Won,Tower Launch')
+    const plan = manualPlan([
+      col('email', ['Email'], 'direct'),
+      col('crm_status', ['Stage'], 'enum_map'),
+      col('data_source', ['Project'], 'enum_map', { 'Tower Launch': 'meridian_tower' }),
+    ])
+
+    const [record] = applyPlan(rows, plan, IMPORTED_AT).records
+    expect(record?.crm_status).toBe('SALE_DONE')
+    expect(record?.data_source).toBe('meridian_tower')
+  })
+
+  it("honours the plan's valueMap rather than silently dropping it", () => {
+    const { rows } = parseCsv('Email,Stage\nr@test.com,Hot')
+    // Without the valueMap, "Hot" would become GOOD_LEAD_FOLLOW_UP by synonym.
+    const plan = manualPlan([
+      col('email', ['Email'], 'direct'),
+      col('crm_status', ['Stage'], 'enum_map', { Hot: 'BAD_LEAD' }),
+    ])
+
+    const [record] = applyPlan(rows, plan, IMPORTED_AT).records
+    expect(record?.crm_status).toBe('BAD_LEAD')
+  })
+
+  it('applies the enum coercers even on a direct-strategy mapping', () => {
+    const { rows } = parseCsv('Email,Stage,Source\nr@test.com,Closed Won,Facebook')
+    const plan = manualPlan([
+      col('email', ['Email'], 'direct'),
+      col('crm_status', ['Stage'], 'direct'),
+      col('data_source', ['Source'], 'direct'),
+    ])
+
+    const [record] = applyPlan(rows, plan, IMPORTED_AT).records
+    expect(record?.crm_status).toBe('SALE_DONE')
+    // "Facebook" is not a GrowEasy project, so it must stay blank, never guessed.
+    expect(record?.data_source).toBe('')
+  })
+
+  it('date_parse uses the plan-supplied format', () => {
+    const { rows } = parseCsv('Email,When\nr@test.com,05/06/2026')
+    const plan = manualPlan([
+      col('email', ['Email'], 'direct'),
+      { ...col('created_at', ['When'], 'date_parse'), dateFormat: 'dd/MM/yyyy' },
+    ])
+
+    const [record] = applyPlan(rows, plan, IMPORTED_AT).records
+    expect(record?.created_at).toBe('2026-06-05 00:00:00')
+  })
+})
+
 describe('applyPlan', () => {
   it('converts a Facebook-shaped export end to end, with no AI', () => {
     const csv = [

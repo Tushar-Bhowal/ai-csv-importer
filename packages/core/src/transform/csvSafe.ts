@@ -1,4 +1,7 @@
-const FORMULA_TRIGGERS = ['=', '+', '-', '@', '\t', '\r']
+// No '\r': the newline escape below runs first, so a leading carriage return can
+// never reach this check. '\t' can, and a leading tab still primes a formula in
+// some spreadsheet importers.
+const FORMULA_TRIGGERS = ['=', '+', '-', '@', '\t']
 
 // Two separate hazards, both about the record's terminal form: a CSV row.
 //

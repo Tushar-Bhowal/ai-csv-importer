@@ -55,3 +55,20 @@ describe('parseCsv', () => {
     expect(rows[0]?.cells.name).toBe('José')
   })
 })
+
+describe('parseCsv — degenerate inputs', () => {
+  it('returns no rows for an empty file', () => {
+    expect(parseCsv('').rows).toHaveLength(0)
+  })
+
+  it('returns no rows for a header-only file', () => {
+    const { headers, rows } = parseCsv('name,email')
+    expect(headers).toEqual(['name', 'email'])
+    expect(rows).toHaveLength(0)
+  })
+
+  it('pads a short row rather than dropping its cells', () => {
+    const { rows } = parseCsv('name,email,city\nRahil,r@x.com')
+    expect(rows[0]?.cells).toEqual({ name: 'Rahil', email: 'r@x.com', city: '' })
+  })
+})

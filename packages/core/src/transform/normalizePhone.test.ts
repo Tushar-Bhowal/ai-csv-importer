@@ -31,6 +31,13 @@ describe('normalizePhone', () => {
     expect(normalizePhone('4155552671', '+1')).toEqual({ countryCode: '+1', mobile: '4155552671' })
   })
 
+  it('accepts the digit-length boundaries and rejects outside them', () => {
+    expect(normalizePhone('1'.repeat(7))).not.toBeNull()
+    expect(normalizePhone('1'.repeat(15))).not.toBeNull()
+    expect(normalizePhone('1'.repeat(6))).toBeNull()
+    expect(normalizePhone('1'.repeat(16))).toBeNull()
+  })
+
   it.each(['', '   ', 'N/A', '-', 'null', 'not a phone', '123', '1'.repeat(16)])(
     'returns null for %o',
     (raw) => {

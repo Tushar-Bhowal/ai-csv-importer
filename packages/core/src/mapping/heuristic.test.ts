@@ -81,4 +81,35 @@ describe('sanitizePlan', () => {
     expect(clean.columns.some((c) => c.target === 'company')).toBe(false)
     expect(clean.columns).toHaveLength(plan.columns.length)
   })
+
+  it('filters noteColumns and ignoreColumns by the same rule', () => {
+    const plan = heuristicPlan(['name', 'email'])
+    const hostile = {
+      ...plan,
+      noteColumns: ['name', 'does_not_exist'],
+      ignoreColumns: ['email', '../../secrets'],
+    }
+
+    const clean = sanitizePlan(hostile, ['name', 'email'])
+    expect(clean.noteColumns).toEqual(['name'])
+    expect(clean.ignoreColumns).toEqual(['email'])
+  })
+
+  it('drops a mapping where only one of several source columns is real', () => {
+    const plan = heuristicPlan(['name', 'email'])
+    const hostile = {
+      ...plan,
+      columns: [
+        {
+          target: 'name' as const,
+          sourceColumns: ['name', 'invented'],
+          strategy: 'concat' as const,
+          confidence: 1,
+          reasoning: 'half hallucinated',
+        },
+      ],
+    }
+
+    expect(sanitizePlan(hostile, ['name', 'email']).columns).toHaveLength(0)
+  })
 })
