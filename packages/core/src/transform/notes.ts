@@ -1,17 +1,13 @@
 import { isBlank } from './extract.js'
 
 export interface NoteParts {
-  /** Value that was already destined for crm_note, if any. */
   base?: string
   extraEmails?: string[]
   extraPhones?: string[]
-  /** Columns the plan did not map, kept so no uploaded data is lost. */
+  /** Columns the plan did not map. crm_note is the lossless channel. */
   unmapped?: Record<string, string>
 }
 
-// The brief says the first email and first mobile win, and everything left over
-// goes to crm_note — including columns we could not map. A CRM note is the
-// lossless channel; nothing the user uploaded is thrown away.
 export function buildNote(parts: NoteParts): string {
   const segments: string[] = []
 

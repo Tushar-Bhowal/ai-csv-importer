@@ -6,8 +6,6 @@ type DataSource = (typeof DATA_SOURCE)[number]
 
 const key = (value: string) => value.trim().toLowerCase().replace(/[\s_-]+/g, '')
 
-// Words that recur across CRM exports, so the common case costs no AI call and
-// no user correction. Anything unrecognised falls through to the plan's valueMap.
 const STATUS_SYNONYMS: Record<string, CrmStatus> = {
   goodlead: 'GOOD_LEAD_FOLLOW_UP',
   goodleadfollowup: 'GOOD_LEAD_FOLLOW_UP',
@@ -57,8 +55,7 @@ function coerce<T extends string>(
 export const coerceStatus = (raw: string, valueMap?: Record<string, string>) =>
   coerce(raw, CRM_STATUS, STATUS_SYNONYMS, valueMap)
 
-// data_source values are GrowEasy's own project names. No external CSV contains
-// them, so the correct answer is almost always ''. Guessing here is the failure
-// mode the brief is testing for; there are deliberately no synonyms.
+// No synonyms, deliberately: data_source holds GrowEasy's own project names, so
+// an external word like "Facebook" must stay blank rather than be guessed at.
 export const coerceDataSource = (raw: string, valueMap?: Record<string, string>) =>
   coerce(raw, DATA_SOURCE, {} as Record<string, DataSource>, valueMap)

@@ -34,8 +34,8 @@ export class AppError extends Error {
 
   static from(err: unknown): AppError {
     if (err instanceof AppError) return err
-    // An unknown error's message may carry a stack path, a query, or a credential.
-    // Keep the original on `cause` for the logs; never let it reach the client.
+    // An unknown error's message may carry a path, a query, or a credential.
+    // Keep it on `cause` for the logs; never let it reach the client.
     const wrapped = new AppError('INTERNAL', 'Something went wrong on our side.')
     wrapped.cause = err
     return wrapped

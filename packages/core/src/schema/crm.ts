@@ -35,9 +35,8 @@ export const CRM_FIELDS = [
 
 export type CrmField = (typeof CRM_FIELDS)[number]
 
-// Missing values are '' rather than null: a record's terminal form is a CSV
-// row, and '' is what an empty CSV cell is. The two closed sets allow '' too,
-// encoding "if none match confidently, leave it blank" in the type itself.
+// '' rather than null throughout: a record's terminal form is a CSV row, and ''
+// is what an empty cell is. The two closed sets allow '' for the same reason.
 export const CrmRecordSchema = z.object({
   created_at: z.string(), // 'YYYY-MM-DD HH:mm:ss' — always new Date()-parseable
   name: z.string(),

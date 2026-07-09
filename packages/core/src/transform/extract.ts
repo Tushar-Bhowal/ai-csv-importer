@@ -1,11 +1,10 @@
 const EMAIL = /[\w.+-]+@[\w-]+\.[\w.-]+/g
-// 8-15 digits with optional +, and separators humans actually type. Deliberately
-// loose: libphonenumber decides validity, this only finds candidates.
+// Loose on purpose: libphonenumber decides validity, this only finds candidates.
 const PHONE = /\+?\d[\d\s().-]{6,18}\d/g
 
 const NULLISH = new Set(['', '-', '--', 'n/a', 'na', 'null', 'nil', 'none', 'undefined', 'nan'])
 
-/** Excel and "N/A" both mean empty. Treat them that way once, here. */
+/** "N/A", "-" and friends all mean empty. */
 export function isBlank(value: string | undefined | null): boolean {
   return value == null || NULLISH.has(value.trim().toLowerCase())
 }

@@ -14,7 +14,6 @@ describe('detectHeaderRow', () => {
   })
 
   it('penalises cells that look like data, not labels', () => {
-    // Row 0 has duplicate names and a blank, row 1 is full of emails.
     expect(detectHeaderRow([['email', 'email', ''], ['a@b.com', 'c@d.com', 'x']])).toBe(0)
   })
 

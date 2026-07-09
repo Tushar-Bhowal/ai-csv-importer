@@ -14,7 +14,7 @@ describe('decodeCsvBuffer', () => {
   })
 
   it('falls back to Windows-1252 when the bytes are not valid UTF-8', () => {
-    // 0xE9 alone is "é" in Windows-1252 and invalid as standalone UTF-8.
+    // 0xE9 is "é" in Windows-1252 and invalid as standalone UTF-8.
     const bytes = new Uint8Array([...utf8('Jos'), 0xe9])
     expect(decodeCsvBuffer(bytes)).toBe('José')
   })

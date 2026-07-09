@@ -18,9 +18,8 @@ const planFor = (csv: string): { plan: MappingPlan; rows: ReturnType<typeof pars
   }
 }
 
-// heuristicPlan deliberately never emits enum_map, concat, or a data_source
-// mapping — but an LLM-produced plan will. These hand-built plans cover the
-// branches that only Phase 2 exercises, before Phase 2 depends on them.
+// heuristicPlan never emits enum_map, concat, or a data_source mapping, but an
+// LLM plan will. These plans are hand-built to reach those branches.
 const manualPlan = (columns: MappingPlan['columns']): MappingPlan => ({
   columns,
   noteColumns: [],
@@ -91,7 +90,7 @@ describe('applyPlan — strategies only an LLM plan produces', () => {
 
     const [record] = applyPlan(rows, plan, IMPORTED_AT).records
     expect(record?.crm_status).toBe('SALE_DONE')
-    // "Facebook" is not a GrowEasy project, so it must stay blank, never guessed.
+    // "Facebook" is not a GrowEasy project, so it must stay blank.
     expect(record?.data_source).toBe('')
   })
 

@@ -4,12 +4,12 @@ import { CrmRecordSchema } from './crm.js'
 import { MappingPlanSchema } from './plan.js'
 
 export const SKIP_REASONS = [
-  'no_contact', // neither an email nor a mobile number was found
+  'no_contact',
   'ai_extraction_failed', // every retry of the per-row LLM fallback failed
 ] as const
 
 export const SkippedRowSchema = z.object({
-  rowNumber: z.number().int().min(1), // 1-based, as a spreadsheet user counts
+  rowNumber: z.number().int().min(1),
   reason: z.enum(SKIP_REASONS),
   original: z.record(z.string(), z.string()),
 })

@@ -4,8 +4,7 @@ import { findEmails, findPhones } from '../transform/extract.js'
 
 const norm = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '')
 
-// Header names seen across Facebook Lead Ads, Google Ads, HubSpot, Zoho, and
-// hand-made spreadsheets. Order matters: earlier entries win a tie.
+// Earlier entries win a tie.
 const SYNONYMS: Record<CrmField, string[]> = {
   created_at: ['createdat', 'createdtime', 'createdon', 'date', 'datecreated', 'timestamp', 'leaddate', 'submittedon'],
   name: ['name', 'fullname', 'leadname', 'customername', 'contactname', 'clientname', 'firstname'],
@@ -24,14 +23,13 @@ const SYNONYMS: Record<CrmField, string[]> = {
   description: ['description', 'details', 'message', 'enquiry', 'requirement'],
 }
 
-// Fields where a wrong guess is expensive. data_source is a closed set of
-// GrowEasy's own project names, so a header called "Source" almost never
-// contains one — never map it blind.
+// data_source holds GrowEasy's own project names, which no external header
+// carries. A blind match on "Source" would be wrong every time.
 const NEVER_HEURISTIC: ReadonlySet<CrmField> = new Set(['data_source'])
 
-// Take the best match across all synonyms, not the first: "company_name" both
-// starts with "company" (weak) and equals "companyname" (strong), and stopping
-// at the first hit would let the field `name` steal it on a suffix match.
+// Best match across all synonyms, not the first: "company_name" starts with
+// "company" (0.8) and equals "companyname" (0.94), and stopping at the first hit
+// would let `name` steal it on a suffix match.
 function scoreHeader(header: string, field: CrmField): number {
   const h = norm(header)
   if (h === '') return 0
@@ -56,12 +54,7 @@ function strategyFor(field: CrmField): ColumnMapping['strategy'] {
   return 'direct'
 }
 
-/**
- * A free, deterministic baseline plan from header names alone. It serves two
- * jobs: it primes the LLM (correcting a draft beats inventing one), and it is
- * the fallback when the LLM is unreachable — so the importer never hard-fails.
- * It is also the control in `npm run eval`: the number the AI has to beat.
- */
+// Free baseline. Primes the LLM, and stands in for it when it is unreachable.
 export function heuristicPlan(
   headers: readonly string[],
   options: { headerRowIndex?: number; sampleRows?: readonly Record<string, string>[] } = {},
@@ -86,8 +79,7 @@ export function heuristicPlan(
     if (!held || bestScore > held.score) claimed.set(bestField, { header, score: bestScore })
   }
 
-  // Header names lie by omission: a column called "Contact" may hold emails.
-  // One glance at the sampled values settles it.
+  // A column named "Contact" may hold emails; the values settle it.
   const sample = options.sampleRows ?? []
   if (!claimed.has('email')) {
     const emailish = headers.find((h) => sample.some((r) => findEmails(r[h] ?? '').length > 0))

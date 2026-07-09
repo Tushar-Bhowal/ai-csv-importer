@@ -15,8 +15,7 @@ export interface ApplyPlanResult {
   skipped: SkippedRow[]
 }
 
-// crm_status and data_source are closed sets, not free text. The type system
-// enforces that only their coercers may write them; everything else is a string.
+// Only coerceStatus and coerceDataSource may write the two closed-set fields.
 type TextField = Exclude<CrmField, 'crm_status' | 'data_source'>
 
 const isEnumField = (field: CrmField): field is 'crm_status' | 'data_source' =>
@@ -100,20 +99,16 @@ function applyRow(row: CsvRow, plan: MappingPlan, importedAt: string): CrmRecord
 
   record.crm_note = buildNote({ base: noteBase, extraEmails, extraPhones, unmapped })
 
-  // A lead without a timestamp is still a lead; the brief demands only that
-  // created_at survives new Date().
+  // A lead without a timestamp is still a lead.
   if (isBlank(record.created_at)) record.created_at = importedAt
 
-  // Make the two phone fields honour their own names, even if a plan pointed a
-  // free-text column at them.
+  // A plan may point a free-text column at either phone field.
   const ccDigits = record.country_code.replace(/\D/g, '')
   record.country_code = ccDigits ? `+${ccDigits}` : ''
   record.mobile_without_country_code = record.mobile_without_country_code.replace(/\D/g, '')
 
-  // Enum fields hold a closed set of values and cannot carry a newline or a
-  // formula. country_code is '+' followed by digits, per the brief's sample
-  // file — the one field whose leading '+' is meaningful, and already
-  // constrained above. Everything else is free text and gets the full guard.
+  // country_code is exempt: its leading '+' is meaningful, and it is already
+  // constrained to +digits above.
   for (const field of TEXT_FIELDS) {
     if (field === 'country_code') continue
     record[field] = csvSafe(record[field])
@@ -121,15 +116,7 @@ function applyRow(row: CsvRow, plan: MappingPlan, importedAt: string): CrmRecord
   return record
 }
 
-/**
- * Pure: same rows and plan in, same records out. No network, no AI, no clock
- * beyond the caller-supplied `importedAt`. This is what makes the test suite
- * mean something — and it is the entire reason the LLM maps the schema once
- * instead of transforming every row.
- *
- * Invariant: records.length + skipped.length === rows.length. No row is ever
- * silently dropped.
- */
+// Invariant: records.length + skipped.length === rows.length.
 export function applyPlan(
   rows: readonly CsvRow[],
   plan: MappingPlan,

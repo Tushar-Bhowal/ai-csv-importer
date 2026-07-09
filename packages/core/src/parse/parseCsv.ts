@@ -4,7 +4,7 @@ import { decodeCsvBuffer } from './decode.js'
 import { detectHeaderRow } from './detectHeaderRow.js'
 
 export interface CsvRow {
-  /** 1-based line number in the original file, as a spreadsheet user counts. */
+  /** 1-based line number in the original file, as a spreadsheet shows it. */
   rowNumber: number
   cells: Record<string, string>
 }
@@ -16,8 +16,8 @@ export interface ParsedCsv {
   delimiter: string
 }
 
-// Blank names and duplicates both break a header→value map, and real exports
-// contain both. Keep them positionally distinct instead of silently colliding.
+// Real exports contain blank and duplicate header names; both would collide in
+// a header→value map.
 function normalizeHeaders(raw: readonly string[]): string[] {
   const used = new Set<string>()
   return raw.map((cell, i) => {

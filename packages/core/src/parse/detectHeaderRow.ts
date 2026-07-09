@@ -1,12 +1,8 @@
 const looksNumeric = (cell: string) => /^[\d\s.,/:+-]+$/.test(cell)
 const looksLikeData = (cell: string) => cell.includes('@') || cell.length > 40
 
-/**
- * Excel exports often carry a title, a date line, or blank rows above the real
- * header. Score each early row on how header-like it is — many distinct, short,
- * non-numeric cells that do not look like values, with a width the rows below
- * agree with. Ties go to the earliest row, because headers come first.
- */
+// Excel exports often carry a title or a date line above the real header.
+// Ties go to the earliest row, because headers come first.
 export function detectHeaderRow(rows: readonly string[][], lookahead = 10): number {
   let best = 0
   let bestScore = -Infinity

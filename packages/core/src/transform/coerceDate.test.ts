@@ -17,7 +17,7 @@ describe('coerceDate', () => {
   it('resolves the dd/MM vs MM/dd ambiguity from the supplied format, not a guess', () => {
     expect(coerceDate('13/05/2026', 'dd/MM/yyyy')).toBe('2026-05-13 00:00:00')
     expect(coerceDate('05/13/2026', 'MM/dd/yyyy')).toBe('2026-05-13 00:00:00')
-    // Same eight characters, two different dates. Only the format tells them apart.
+    // Same eight characters, two different dates.
     expect(coerceDate('05/06/2026', 'dd/MM/yyyy')).toBe('2026-06-05 00:00:00')
     expect(coerceDate('05/06/2026', 'MM/dd/yyyy')).toBe('2026-05-06 00:00:00')
   })
