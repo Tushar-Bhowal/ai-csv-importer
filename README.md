@@ -142,7 +142,8 @@ It is deleted at the end of Phase 3.
 
 | Symptom | Cause | Fix |
 | --- | --- | --- |
-| Build fails with `Cannot find module '@groweasy/core'` | **Include files outside Root Directory** is off, so Vercel pruned `packages/`. | Turn it on. Both projects. |
+| Build fails with `TS2349: This expression is not callable` on `helmet()` / `express()` | `apps/api/tsconfig.json` used `extends: "../../tsconfig.base.json"`. Vercel compiles from inside the Root Directory and cannot follow an `extends` above it, so it silently falls back to compiler defaults — no `esModuleInterop`, `moduleResolution: node10` — and default-importing a CJS package stops working. | `apps/api/tsconfig.json` must be **self-contained**: no `extends`, and no `noEmit` (Vercel needs to emit). Verify with `cd apps/api && npx tsc`. |
+| Build fails with `Cannot find module '@groweasy/core'` | Vercel pruned the repo root, so npm workspaces never linked `packages/core`. | Settings → Build & Deployment → Root Directory → include files outside it. |
 | Build fails with `@groweasy/core/dist/index.js` not found | The root `npm install` didn't run, so the `prepare` script never built `core`. | The install command must run at the repo root. `apps/api/vercel.json` already does this with `cd ../.. && npm install`. |
 | Web page shows *"Cannot reach the API"* | `WEB_ORIGIN` isn't set on the API project, so CORS is still allowing only `localhost:3000`. | Set `WEB_ORIGIN` to the web deployment's origin. `GET /api/v1/health` echoes `allowedOrigins`, so you can see exactly what the API will accept. |
 | Progress stream arrives all at once at the end | The platform buffered the SSE response. | Headers `X-Accel-Buffering: no` and `Cache-Control: no-transform` are already set. If it still buffers, SSE must become chunked polling. |
