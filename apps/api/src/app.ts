@@ -24,3 +24,5 @@ app.use('/api/v1', probeRouter)
 
 app.use(notFound)
 app.use(errorHandler)
+
+export default app

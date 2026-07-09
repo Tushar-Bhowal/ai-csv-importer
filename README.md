@@ -51,9 +51,17 @@ apps/api        Express 5. app.ts knows nothing about where it runs.
 apps/web        Next.js 15 App Router.
 ```
 
-`apps/api/src/app.ts` builds the Express app. `server.ts` calls `app.listen()` for local dev and any
-plain Node host. `api/index.js` is a one-line `export default app` for Vercel. The app does not know
-which one is using it.
+`apps/api/src/app.ts` builds the Express app and `export default`s it. Vercel
+[deploys Express with zero config](https://vercel.com/docs/frameworks/backend/express) by picking up
+that default export — no `api/` folder, no rewrites, no compiled output. `src/dev.ts` calls
+`app.listen()` for local development. It's named `dev.ts`, not `server.ts`, because Vercel also
+treats `src/server.ts` as an entrypoint candidate and we want exactly one.
+
+`packages/core` **is** compiled to `dist`, because Vercel's Express function
+[does not bundle its dependencies](https://vercel.com/docs/frameworks/backend/express#limitations).
+Per Turborepo's [Internal Packages](https://turborepo.dev/docs/core-concepts/internal-packages)
+guidance, a package consumed by a bundler can ship raw TypeScript; one consumed without a bundler
+must be compiled. `npm install` builds it via a `prepare` script.
 
 ## Deploy — two Vercel projects, same repo
 
@@ -66,8 +74,8 @@ Both are created by hand in the Vercel dashboard, from
 | --- | --- |
 | Root Directory | `apps/api` |
 | Include files outside Root Directory | **on** (npm workspaces: `@groweasy/core` lives at the repo root) |
-| Framework Preset | Other |
-| Install / Build Command | taken from `apps/api/vercel.json` |
+| Framework Preset | Express (auto-detected) |
+| Install Command | from `apps/api/vercel.json` — runs at the repo root so workspaces link and `prepare` builds `core` |
 | Env | `GOOGLE_GENERATIVE_AI_API_KEY`, `WEB_ORIGIN=https://<web-url>` |
 
 **Project 2 — `web`**
