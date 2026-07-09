@@ -35,9 +35,9 @@ npm run dev               # web → :3000   api → :3001   core → rebuilds on
 
 Or run them separately: `npm run dev:api`, `npm run dev:web`, `npm run dev:core`.
 
-> Use `npm install`, not `npm ci`. rolldown (via vitest → vite) pins `@emnapi/core` as an optional
-> *peer*, and npm writes a lockfile that its own `npm ci` rejects. CI works around it with
-> `npm ci --include=optional`.
+> Adding a dependency? Refresh the lockfile with `npm install --include=optional`. rolldown (via
+> vitest → vite) pins `@emnapi/core` as an optional *peer*, and a lockfile written by plain
+> `npm install` omits it — which npm's own `npm ci` then rejects. See `BACKLOG.md` #3.
 
 **No API key?** It still runs. The app falls back to heuristic column matching, sets
 `degraded: true`, and says so in the UI. A free key from

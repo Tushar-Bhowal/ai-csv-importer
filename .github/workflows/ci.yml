@@ -15,10 +15,9 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 
-      # --include=optional works around an npm bug: rolldown (via vitest -> vite)
-      # pins @emnapi/core as an optional peer, and `npm install` writes a lockfile
-      # that plain `npm ci` then rejects as out of sync.
-      - run: npm ci --include=optional
+      # Plain `npm ci` on purpose: it fails loudly if package-lock.json was
+      # regenerated without --include=optional. See BACKLOG.md #3.
+      - run: npm ci
 
       - run: npm run lint
       - run: npm run typecheck
