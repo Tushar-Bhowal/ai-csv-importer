@@ -1,17 +1,17 @@
 import cors from 'cors'
 import express from 'express'
-import helmet from 'helmet'
 
 import { allowedOrigins } from './config.js'
 import { errorHandler, notFound } from './middleware/error.js'
 import { requestId } from './middleware/requestId.js'
+import { securityHeaders } from './middleware/securityHeaders.js'
 import { healthRouter } from './routes/health.js'
 import { probeRouter } from './routes/probes.js'
 
 export const app = express()
 
 app.disable('x-powered-by')
-app.use(helmet())
+app.use(securityHeaders)
 app.use(cors({ origin: allowedOrigins, exposedHeaders: ['X-Request-Id'] }))
 app.use(requestId)
 

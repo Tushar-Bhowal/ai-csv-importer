@@ -10,8 +10,7 @@
   "dependencies": {
     "@groweasy/core": "*",
     "cors": "^2.8.6",
-    "express": "^5.2.1",
-    "helmet": "^8.2.0"
+    "express": "^5.2.1"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
