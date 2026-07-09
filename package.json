@@ -11,10 +11,13 @@
     "apps/*"
   ],
   "scripts": {
+    "prepare": "npm run build:core",
     "build:core": "npm run build --workspace @groweasy/core",
     "build:api": "npm run build:core && npm run build --workspace @groweasy/api",
     "build:web": "npm run build:core && npm run build --workspace @groweasy/web",
     "build": "npm run build:api && npm run build --workspace @groweasy/web",
+    "dev": "npm run build:core && concurrently -k -n core,api,web -c blue,green,magenta \"npm:dev:core\" \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:core": "tsc -b packages/core --watch --preserveWatchOutput",
     "dev:api": "npm run dev --workspace @groweasy/api",
     "dev:web": "npm run dev --workspace @groweasy/web",
     "typecheck": "tsc -b && tsc -p tsconfig.test.json && tsc -p apps/web/tsconfig.json --noEmit",
@@ -26,6 +29,7 @@
   "devDependencies": {
     "@eslint/js": "^9.17.0",
     "@types/node": "^22.10.2",
+    "concurrently": "^10.0.3",
     "eslint": "^9.17.0",
     "eslint-config-prettier": "^9.1.0",
     "prettier": "^3.4.2",

@@ -26,11 +26,12 @@ allowed values. Pure TypeScript then applies that plan to all 40,000 rows.
 ## Run it
 
 ```bash
-npm install
+npm install               # also builds packages/core, which the API imports
 cp .env.example .env      # the API key is optional — see below
-npm run dev:api           # terminal 1 → http://localhost:3001
-npm run dev:web           # terminal 2 → http://localhost:3000
+npm run dev               # web → :3000   api → :3001   core → rebuilds on save
 ```
+
+Or run them separately: `npm run dev:api`, `npm run dev:web`, `npm run dev:core`.
 
 **No API key?** It still runs. The app falls back to heuristic column matching, sets
 `degraded: true`, and says so in the UI. A free key from
