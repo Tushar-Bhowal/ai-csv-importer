@@ -107,3 +107,13 @@ curl -s -o /dev/null -w '%{http_code}\n' -F file=@/tmp/5mb.csv https://<api-url>
 
 `/api/v1/probe/*` exists only to answer (2) and (3) on the real platform rather than on localhost.
 It is deleted at the end of Phase 3.
+
+### If a deploy goes wrong
+
+| Symptom | Cause | Fix |
+| --- | --- | --- |
+| Build fails with `Cannot find module '@groweasy/core'` | **Include files outside Root Directory** is off, so Vercel pruned `packages/`. | Turn it on. Both projects. |
+| Build fails with `@groweasy/core/dist/index.js` not found | The root `npm install` didn't run, so the `prepare` script never built `core`. | The install command must run at the repo root. `apps/api/vercel.json` already does this with `cd ../.. && npm install`. |
+| Web page shows *"Cannot reach the API"* | `WEB_ORIGIN` isn't set on the API project, so CORS is still allowing only `localhost:3000`. | Set `WEB_ORIGIN` to the web deployment's origin. `GET /api/v1/health` echoes `allowedOrigins`, so you can see exactly what the API will accept. |
+| Progress stream arrives all at once at the end | The platform buffered the SSE response. | Headers `X-Accel-Buffering: no` and `Cache-Control: no-transform` are already set. If it still buffers, SSE must become chunked polling. |
+| Upload returns `413` | Vercel caps request bodies below the 5 MB the brief mentions. | Lower the upload limit to 4 MB and say so in this README. |

@@ -2,15 +2,11 @@ import cors from 'cors'
 import express from 'express'
 import helmet from 'helmet'
 
+import { allowedOrigins } from './config.js'
 import { errorHandler, notFound } from './middleware/error.js'
 import { requestId } from './middleware/requestId.js'
 import { healthRouter } from './routes/health.js'
 import { probeRouter } from './routes/probes.js'
-
-const allowedOrigins = (process.env.WEB_ORIGIN ?? 'http://localhost:3000')
-  .split(',')
-  .map((origin) => origin.trim())
-  .filter(Boolean)
 
 export const app = express()
 
