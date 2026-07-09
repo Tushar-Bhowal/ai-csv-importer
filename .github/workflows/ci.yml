@@ -12,9 +12,15 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
+
+      # --include=optional works around an npm bug: rolldown (via vitest -> vite)
+      # pins @emnapi/core as an optional peer, and `npm install` writes a lockfile
+      # that plain `npm ci` then rejects as out of sync.
+      - run: npm ci --include=optional
+
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+      - run: npm run build

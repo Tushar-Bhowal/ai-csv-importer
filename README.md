@@ -25,6 +25,8 @@ allowed values. Pure TypeScript then applies that plan to all 40,000 rows.
 
 ## Run it
 
+Requires **Node 24** (see `.nvmrc`; `nvm use` picks it up).
+
 ```bash
 npm install               # also builds packages/core, which the API imports
 cp .env.example .env      # the API key is optional — see below
@@ -32,6 +34,10 @@ npm run dev               # web → :3000   api → :3001   core → rebuilds on
 ```
 
 Or run them separately: `npm run dev:api`, `npm run dev:web`, `npm run dev:core`.
+
+> Use `npm install`, not `npm ci`. rolldown (via vitest → vite) pins `@emnapi/core` as an optional
+> *peer*, and npm writes a lockfile that its own `npm ci` rejects. CI works around it with
+> `npm ci --include=optional`.
 
 **No API key?** It still runs. The app falls back to heuristic column matching, sets
 `degraded: true`, and says so in the UI. A free key from
