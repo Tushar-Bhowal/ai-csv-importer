@@ -20,6 +20,8 @@
     "typecheck": "tsc -b && tsc -p tsconfig.test.json"
   },
   "dependencies": {
+    "@ai-sdk/google": "^4.0.11",
+    "ai": "^7.0.19",
     "date-fns": "^4.4.0",
     "libphonenumber-js": "^1.13.8",
     "papaparse": "^5.5.4",
