@@ -54,7 +54,7 @@ npm run lint
 ```
 packages/core   the product. imports neither Express nor React.
 apps/api        Express 5. app.ts knows nothing about where it runs.
-apps/web        Next.js 15 App Router.
+apps/web        Next.js 16 App Router.
 ```
 
 `apps/api/src/app.ts` builds the Express app and `export default`s it. Vercel
@@ -71,27 +71,51 @@ must be compiled. `npm install` builds it via a `prepare` script.
 
 ## Deploy — two Vercel projects, same repo
 
-Both are created by hand in the Vercel dashboard, from
-`github.com/Tushar-Bhowal/ai-csv-importer`.
+Each project needs the other's URL, so the order matters: **api → web → back to api.**
 
-**Project 1 — `api`**
+**Step 1 — create the `api` project**
+
+Vercel → Add New → Project → import `Tushar-Bhowal/ai-csv-importer`.
 
 | Setting | Value |
 | --- | --- |
+| Project Name | `ai-csv-importer-api` |
 | Root Directory | `apps/api` |
 | Include files outside Root Directory | **on** (npm workspaces: `@groweasy/core` lives at the repo root) |
 | Framework Preset | Express (auto-detected) |
-| Install Command | from `apps/api/vercel.json` — runs at the repo root so workspaces link and `prepare` builds `core` |
-| Env | `GOOGLE_GENERATIVE_AI_API_KEY`, `WEB_ORIGIN=https://<web-url>` |
+| Install / Build Command | leave empty — `apps/api/vercel.json` sets them |
+| Env | *(none yet)* |
 
-**Project 2 — `web`**
+Deploy, then copy the URL. Call it `<api-url>`.
+
+**Step 2 — create the `web` project**
+
+Add New → Project → import **the same repo again**.
 
 | Setting | Value |
 | --- | --- |
+| Project Name | `ai-csv-importer` |
 | Root Directory | `apps/web` |
 | Include files outside Root Directory | **on** |
-| Framework Preset | Next.js |
-| Env | `NEXT_PUBLIC_API_URL=https://<api-url>` |
+| Framework Preset | Next.js (auto-detected) |
+| Env | `NEXT_PUBLIC_API_URL` = `<api-url>` — no trailing slash |
+
+Deploy, then copy the URL. Call it `<web-url>`. **This is the URL you submit.**
+
+**Step 3 — go back to the `api` project and finish it**
+
+Settings → Environment Variables:
+
+| Name | Value |
+| --- | --- |
+| `WEB_ORIGIN` | `<web-url>` — no trailing slash |
+| `GOOGLE_GENERATIVE_AI_API_KEY` | your key (optional; without it the app runs on heuristics) |
+
+Then **Deployments → ⋯ → Redeploy.** Environment variables only take effect on a new build.
+
+> Both variables are read at build/boot time, not per request. Change either one and you must
+> redeploy that project. `NEXT_PUBLIC_*` values are baked into the browser bundle, so the *web*
+> project must be redeployed if `<api-url>` ever changes.
 
 ### Then verify the deployment, before building anything on top of it
 
