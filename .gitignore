@@ -11,6 +11,7 @@ next-env.d.ts
 
 CLAUDE.md
 docs/INTERVIEW.md
+docs/RESUME.md
 .claude/
 **/.vercel/
 
