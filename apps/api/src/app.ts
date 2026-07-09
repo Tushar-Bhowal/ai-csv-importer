@@ -15,6 +15,10 @@ app.use(securityHeaders)
 app.use(cors({ origin: allowedOrigins, exposedHeaders: ['X-Request-Id'] }))
 app.use(requestId)
 
+app.get('/', (_req, res) => {
+  res.json({ service: 'ai-csv-importer-api', health: '/api/v1/health' })
+})
+
 app.use('/api/v1', healthRouter)
 app.use('/api/v1', probeRouter)
 

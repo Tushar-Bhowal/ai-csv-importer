@@ -4,7 +4,9 @@ export const isProduction = process.env.NODE_ENV === 'production'
 
 export const allowedOrigins = (process.env.WEB_ORIGIN ?? DEFAULT_WEB_ORIGIN)
   .split(',')
-  .map((origin) => origin.trim())
+  // A browser's Origin header is scheme://host[:port], never with a trailing
+  // slash — but a human pasting a URL into an env var usually includes one.
+  .map((origin) => origin.trim().replace(/\/+$/, ''))
   .filter(Boolean)
 
 export const hasLlmKey = Boolean(process.env.GOOGLE_GENERATIVE_AI_API_KEY)
