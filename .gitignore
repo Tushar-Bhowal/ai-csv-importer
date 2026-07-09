@@ -12,7 +12,7 @@ next-env.d.ts
 CLAUDE.md
 docs/INTERVIEW.md
 .claude/
-.vercel/
+**/.vercel/
 
 coverage/
 .DS_Store
