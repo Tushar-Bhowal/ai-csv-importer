@@ -3,25 +3,46 @@
 Upload any CSV of leads. One AI call works out what the columns mean; deterministic TypeScript
 converts every row into GrowEasy CRM format.
 
-> **Status: Phase 0 (scaffold + deploy).** The importer itself lands in Phase 1–4. This README is
-> replaced in Phase 7.
+> **Status: the transform core and the UI are built. The AI call is not.**
+> Columns are matched by name today, so every import reports `degraded: true`. The one AI mapping
+> call lands in Phase 2, the Express API in Phase 3; until then the UI runs `packages/core`
+> directly through a server action. This README is replaced in Phase 7.
+
+| Phase | | |
+| --- | --- | --- |
+| 0 | scaffold, deploy, probes | done |
+| 1 | `packages/core` — parse, transform, 129 tests, zero AI | done |
+| 2 | **one AI call → `MappingPlan`** | **next** |
+| 3 | Express API + upload route | |
+| 4 | Next.js UI | done, ahead of 2 and 3 |
+| 5 | eval harness — cost, latency, mapping accuracy | |
+| 6 | robustness | |
+| 7 | README, decisions, submit | |
 
 ## The idea
 
 > **The LLM decides how to interpret the file. Code does the interpreting.**
 
-The model sees the header row and ~30 sampled rows, and returns a *mapping plan* — which column
-feeds which CRM field, what date format this file uses, how its status strings map onto the four
-allowed values. Pure TypeScript then applies that plan to all 40,000 rows.
+The assignment asks for records to be sent to the AI in batches. This app does that — but only for
+the rows that need it.
 
-|                            | Row-by-row batching | Schema mapping (this) |
-| -------------------------- | ------------------- | --------------------- |
-| AI calls, 10k rows         | ~400                | **1**                 |
-| Cost                       | ~$1.20              | **~$0.0002**          |
-| Latency                    | ~90s                | **~4s**               |
-| Same input → same output   | no                  | **yes**               |
-| Can hallucinate a phone no. | yes                | **structurally impossible** |
-| Unit-testable              | no                  | **yes**               |
+First comes one call. The model reads the header row and ~30 sampled rows, and returns a *mapping
+plan*: which column feeds which CRM field, what date format this file uses, how its status strings
+map onto the four allowed values. Deterministic TypeScript then applies that plan to every row.
+Rows the plan cannot resolve are escalated back to the AI in batches, with retry and backoff.
+
+Mapping first, batching for the residue. Three reasons:
+
+- **The mapping call cannot emit a data value.** It returns column names, a format string, and an
+  enum map — never a name, an email, or a phone number. So it cannot hallucinate a contact, and a
+  cell reading `Ignore previous instructions` has no path to the output. Prompt injection is
+  prevented by the shape of the data, not by filtering it.
+- **Same input, same output.** `applyPlan()` is a pure function, which is what makes the transform
+  layer unit-testable at all.
+- **Cost and latency scale with the number of _columns_, not the number of rows.**
+
+Cost, latency, and field-level mapping accuracy are measured in Phase 5 by `npm run eval`, and the
+numbers land here. Nothing is quoted until it has been measured.
 
 ## Run it
 
