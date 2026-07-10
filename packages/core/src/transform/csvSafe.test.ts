@@ -1,7 +1,21 @@
 import Papa from 'papaparse'
 import { describe, expect, it } from 'vitest'
 
-import { csvSafe } from './csvSafe.js'
+import { csvSafe, singleLine } from './csvSafe.js'
+
+describe('singleLine', () => {
+  it('escapes newlines so a record stays one CSV row', () => {
+    expect(singleLine('line one\nline two')).toBe('line one\\nline two')
+    expect(singleLine('windows\r\nstyle')).toBe('windows\\nstyle')
+    expect(singleLine('old\rmac')).toBe('old\\nmac')
+  })
+
+  it('leaves a formula trigger alone — that quote belongs at the export boundary', () => {
+    expect(singleLine("=cmd|'/c calc'!A1")).toBe("=cmd|'/c calc'!A1")
+    expect(singleLine('-2 BHK')).toBe('-2 BHK')
+    expect(singleLine('+91')).toBe('+91')
+  })
+})
 
 describe('csvSafe', () => {
   it('escapes newlines so a record stays one CSV row', () => {

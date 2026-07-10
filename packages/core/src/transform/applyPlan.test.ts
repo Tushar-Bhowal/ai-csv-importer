@@ -4,6 +4,7 @@ import { parseCsv } from '../parse/parseCsv.js'
 import type { MappingPlan } from '../schema/plan.js'
 import { heuristicPlan } from '../mapping/heuristic.js'
 import { applyPlan } from './applyPlan.js'
+import { csvSafe } from './csvSafe.js'
 
 const IMPORTED_AT = '2026-07-09 12:00:00'
 
@@ -196,7 +197,7 @@ describe('applyPlan', () => {
     expect(applyPlan(rows, plan, IMPORTED_AT)).toEqual(applyPlan(rows, plan, IMPORTED_AT))
   })
 
-  it('country_code keeps its leading + — the one field the formula guard must not touch', () => {
+  it('country_code keeps its leading +', () => {
     const csv = 'name,email,phone\nRahil,r@test.com,+919876543210'
     const { plan, rows } = planFor(csv)
     const [record] = applyPlan(rows, plan, IMPORTED_AT).records
@@ -215,7 +216,17 @@ describe('applyPlan', () => {
     const csv = ['name,email,note', 'Rahil,r@test.com,"=cmd|\'/c calc\'!A1"'].join('\n')
     const { plan, rows } = planFor(csv)
     const [record] = applyPlan(rows, plan, IMPORTED_AT).records
-    expect(record?.crm_note.startsWith("'")).toBe(true)
+
+    // The record is also served as JSON and rendered in the results table, so it
+    // holds what the user uploaded. The quote is added on the way out to CSV.
+    expect(record?.crm_note).toBe("=cmd|'/c calc'!A1")
+    expect(csvSafe(record?.crm_note as string)).toBe("'=cmd|'/c calc'!A1")
+  })
+
+  it('a note that merely starts with - is not mangled', () => {
+    const { plan, rows } = planFor('name,email,note\nRahil,r@test.com,-2 BHK budget')
+    const [record] = applyPlan(rows, plan, IMPORTED_AT).records
+    expect(record?.crm_note).toBe('-2 BHK budget')
   })
 
   it('a prompt-injection cell is inert: it is data, never an instruction', () => {

@@ -4,7 +4,7 @@ import type { ColumnMapping, MappingPlan } from '../schema/plan.js'
 import type { CsvRow } from '../parse/parseCsv.js'
 import { coerceDate } from './coerceDate.js'
 import { coerceDataSource, coerceStatus } from './coerceEnum.js'
-import { csvSafe } from './csvSafe.js'
+import { singleLine } from './csvSafe.js'
 import { findEmails, findPhones, isBlank } from './extract.js'
 import { normalizePhone } from './normalizePhone.js'
 import { buildNote } from './notes.js'
@@ -107,12 +107,7 @@ function applyRow(row: CsvRow, plan: MappingPlan, importedAt: string): CrmRecord
   record.country_code = ccDigits ? `+${ccDigits}` : ''
   record.mobile_without_country_code = record.mobile_without_country_code.replace(/\D/g, '')
 
-  // country_code is exempt: its leading '+' is meaningful, and it is already
-  // constrained to +digits above.
-  for (const field of TEXT_FIELDS) {
-    if (field === 'country_code') continue
-    record[field] = csvSafe(record[field])
-  }
+  for (const field of TEXT_FIELDS) record[field] = singleLine(record[field])
   return record
 }
 
