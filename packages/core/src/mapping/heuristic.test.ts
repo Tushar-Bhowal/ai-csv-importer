@@ -83,15 +83,15 @@ describe('sanitizePlan', () => {
   })
 
   it('filters noteColumns and ignoreColumns by the same rule', () => {
-    const plan = heuristicPlan(['name', 'email'])
+    const plan = heuristicPlan(['name', 'email', 'Budget'])
     const hostile = {
       ...plan,
-      noteColumns: ['name', 'does_not_exist'],
+      noteColumns: ['Budget', 'does_not_exist'],
       ignoreColumns: ['email', '../../secrets'],
     }
 
-    const clean = sanitizePlan(hostile, ['name', 'email'])
-    expect(clean.noteColumns).toEqual(['name'])
+    const clean = sanitizePlan(hostile, ['name', 'email', 'Budget'])
+    expect(clean.noteColumns).toEqual(['Budget'])
     expect(clean.ignoreColumns).toEqual(['email'])
   })
 

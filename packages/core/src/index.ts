@@ -4,11 +4,21 @@ export type { ErrorBody, ErrorCode } from './errors/index.js'
 export { CRM_FIELDS, CRM_STATUS, CrmRecordSchema, DATA_SOURCE, EMPTY_RECORD } from './schema/crm.js'
 export type { CrmField, CrmRecord } from './schema/crm.js'
 
-export { ColumnMappingSchema, MAPPING_STRATEGIES, MappingPlanSchema, sanitizePlan } from './schema/plan.js'
-export type { ColumnMapping, MappingPlan } from './schema/plan.js'
+export {
+  ColumnMappingSchema,
+  fromDraft,
+  MAPPING_STRATEGIES,
+  MappingPlanSchema,
+  PlanDraftSchema,
+  sanitizePlan,
+  toDraft,
+  ValueMapEntrySchema,
+} from './schema/plan.js'
+export type { ColumnMapping, MappingPlan, PlanDraft } from './schema/plan.js'
 
 export {
   AnalyzeResponseSchema,
+  DEGRADED_REASONS,
   ImportResultSchema,
   ImportSummarySchema,
   SKIP_REASONS,
@@ -23,6 +33,9 @@ export { parseCsv } from './parse/parseCsv.js'
 export type { CsvRow, ParsedCsv } from './parse/parseCsv.js'
 
 export { heuristicPlan } from './mapping/heuristic.js'
+export { hasLlmKey, refinePlan } from './mapping/llm.js'
+export type { RefinePlanOptions } from './mapping/llm.js'
+export { sampleRows } from './mapping/sample.js'
 
 export { applyPlan } from './transform/applyPlan.js'
 export type { ApplyPlanResult } from './transform/applyPlan.js'
