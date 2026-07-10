@@ -23,5 +23,10 @@ export default tseslint.config(
       'no-console': ['warn', { allow: ['info', 'warn', 'error'] }],
     },
   },
+  {
+    // The eval runner is a CLI whose output is a report printed to stdout.
+    files: ['eval/**/*.ts'],
+    rules: { 'no-console': 'off' },
+  },
   prettier,
 )
