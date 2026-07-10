@@ -13,6 +13,8 @@ CLAUDE.md
 docs/INTERVIEW.md
 docs/RESUME.md
 .claude/
+.agents/
+skills-lock.json
 **/.vercel/
 
 coverage/

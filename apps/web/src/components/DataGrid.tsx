@@ -5,52 +5,29 @@ import { useMemo, useRef, useState } from 'react'
 
 import type { CrmRecord, SkippedRow } from '@groweasy/core'
 
+import { humanizeField, STATUS_META } from '@/lib/crm-display'
 import { cn } from '@/lib/utils'
-
-const STATUS_LABEL: Record<string, string> = {
-  GOOD_LEAD_FOLLOW_UP: 'Good lead · follow up',
-  DID_NOT_CONNECT: 'Did not connect',
-  BAD_LEAD: 'Bad lead',
-  SALE_DONE: 'Sale done',
-}
 
 const SKIP_REASON_LABEL: Record<string, string> = {
   no_contact: 'No email and no mobile number',
   ai_extraction_failed: 'The model could not read this row',
 }
 
-const humanize = (field: string) => field.replace(/_/g, ' ')
-
 type Tab = 'imported' | 'skipped'
-
-// Tinted ground plus a coloured dot, but the label always carries the meaning:
-// crm_status must never be readable by colour alone.
-const STATUS_TONE: Record<string, { chip: string; dot: string }> = {
-  SALE_DONE: { chip: 'bg-success/10 ring-success/25', dot: 'bg-success' },
-  GOOD_LEAD_FOLLOW_UP: { chip: 'bg-primary/10 ring-primary/25', dot: 'bg-primary' },
-  BAD_LEAD: { chip: 'bg-destructive/10 ring-destructive/25', dot: 'bg-destructive' },
-  DID_NOT_CONNECT: {
-    chip: 'bg-muted-foreground/10 ring-muted-foreground/25',
-    dot: 'bg-muted-foreground',
-  },
-}
 
 function StatusCell({ value }: { value: string }) {
   if (!value) return <span className="text-muted-foreground">—</span>
 
-  const tone = STATUS_TONE[value]
+  const meta = STATUS_META[value]
   return (
     <span
       className={cn(
         'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap ring-1 ring-inset',
-        tone?.chip ?? 'bg-muted ring-border',
+        meta?.chip ?? 'bg-muted ring-border',
       )}
     >
-      <span
-        aria-hidden
-        className={cn('size-1.5 shrink-0 rounded-full', tone?.dot ?? 'bg-border')}
-      />
-      {STATUS_LABEL[value] ?? value}
+      <span aria-hidden className={cn('size-1.5 shrink-0 rounded-full', meta?.dot ?? 'bg-border')} />
+      {meta?.label ?? value}
     </span>
   )
 }
@@ -105,7 +82,7 @@ export function DataGrid({
         <div
           role="tablist"
           aria-label="Import results"
-          className="flex gap-1"
+          className="bg-muted/60 flex gap-1 rounded-lg p-0.5"
           onKeyDown={onTabKeyDown}
         >
           {tabs.map((t) => (
@@ -122,17 +99,17 @@ export function DataGrid({
               aria-controls={`panel-${t.id}`}
               onClick={() => setTab(t.id)}
               className={cn(
-                'focus-visible:outline-ring/50 rounded-md px-2.5 py-1 text-sm transition-colors focus-visible:outline-2',
+                'focus-visible:ring-ring/60 flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm transition-all outline-none focus-visible:ring-2',
                 tab === t.id
-                  ? 'bg-accent text-accent-foreground font-medium'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                  ? 'bg-background text-foreground shadow-2xs font-medium'
+                  : 'text-muted-foreground hover:text-foreground',
               )}
             >
-              {t.label}{' '}
+              {t.label}
               <span
                 className={cn(
-                  'tabular-nums',
-                  tab === t.id ? 'text-accent-foreground/70' : 'text-muted-foreground',
+                  'rounded-full px-1.5 text-[0.7rem] tabular-nums',
+                  tab === t.id ? 'bg-primary/10 text-primary' : 'bg-muted-foreground/10',
                 )}
               >
                 {t.count}
@@ -176,11 +153,11 @@ export function DataGrid({
               {/* Padding lives on the edge cells, not the scroll container: a scroll
               container's padding-right is not painted past the scrolled content. */}
               <table className="w-full border-collapse text-sm">
-                <thead className="bg-sidebar border-border sticky top-0 z-10 border-b">
+                <thead className="bg-sidebar/95 border-border sticky top-0 z-10 border-b backdrop-blur">
                   <tr>
                     <th
                       scope="col"
-                      className="text-muted-foreground bg-sidebar sticky left-0 z-20 h-10 pr-3 pl-4 text-right text-xs font-medium tabular-nums sm:pl-6"
+                      className="text-muted-foreground bg-sidebar/95 sticky left-0 z-20 h-9 pr-3 pl-4 text-right text-[0.7rem] font-medium tabular-nums backdrop-blur sm:pl-6"
                     >
                       #
                     </th>
@@ -188,33 +165,27 @@ export function DataGrid({
                       <th
                         key={field}
                         scope="col"
-                        className="text-muted-foreground h-10 px-3 text-left text-xs font-medium tracking-wide whitespace-nowrap capitalize last:pr-4 sm:last:pr-6"
+                        className="text-muted-foreground h-9 px-3 text-left font-mono text-[0.7rem] font-medium tracking-tight whitespace-nowrap last:pr-4 sm:last:pr-6"
                       >
-                        {humanize(field)}
+                        {humanizeField(field)}
                       </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.map((record, i) => (
-                    <tr
-                      key={i}
-                      className="border-border hover:bg-accent/40 border-b transition-colors"
-                    >
+                    <tr key={i} className="border-border/70 hover:bg-accent/40 border-b transition-colors">
                       <td className="bg-background text-muted-foreground sticky left-0 py-2 pr-3 pl-4 text-right text-xs tabular-nums sm:pl-6">
                         {i + 1}
                       </td>
                       {fields.map((field) => {
                         const value = record[field as keyof CrmRecord]
                         return (
-                          <td
-                            key={field}
-                            className="px-3 py-2 whitespace-nowrap last:pr-4 sm:last:pr-6"
-                          >
+                          <td key={field} className="px-3 py-2 whitespace-nowrap last:pr-4 sm:last:pr-6">
                             {field === 'crm_status' ? (
                               <StatusCell value={value} />
                             ) : value ? (
-                              <span className={cn(field.includes('mobile') && 'tabular-nums')}>
+                              <span className={cn(field.includes('mobile') && 'font-mono tabular-nums')}>
                                 {value}
                               </span>
                             ) : (
@@ -251,11 +222,11 @@ export function DataGrid({
               Every row had an email or a mobile number. Nothing was skipped.
             </p>
           ) : (
-            <ul className="divide-border divide-y">
+            <ul className="divide-border/70 divide-y">
               {skipped.map((row) => (
                 <li key={row.rowNumber} className="grid gap-1 px-4 py-3 sm:px-6">
                   <div className="flex flex-wrap items-baseline gap-x-2 text-sm">
-                    <span className="font-medium tabular-nums">Line {row.rowNumber}</span>
+                    <span className="font-mono font-medium tabular-nums">Line {row.rowNumber}</span>
                     <span className="text-muted-foreground">
                       {SKIP_REASON_LABEL[row.reason] ?? row.reason}
                     </span>

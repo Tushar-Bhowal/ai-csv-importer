@@ -106,6 +106,7 @@
      and the font never loads. */
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-heading: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
 
   --color-background: var(--background);
@@ -168,5 +169,27 @@
   }
   html {
     @apply font-sans;
+  }
+}
+
+/* One safety net for every entrance and fill animation added below, so none of
+   them has to guard reduced-motion itself. Values change instantly instead. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@keyframes draw-in {
+  from {
+    stroke-dashoffset: var(--draw-length, 100);
+  }
+  to {
+    stroke-dashoffset: 0;
   }
 }
