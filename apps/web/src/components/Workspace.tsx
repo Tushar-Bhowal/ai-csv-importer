@@ -1,7 +1,7 @@
 'use client'
 
 import { InfoIcon } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { ApiStatus } from '@/components/ApiStatus'
 import { DataGrid } from '@/components/DataGrid'
@@ -55,6 +55,23 @@ export function Workspace({ fields, maxBytes }: { fields: readonly string[]; max
   const [startingOver, setStartingOver] = useState(false)
 
   const showResult = state.kind === 'done' && !pending && !startingOver
+
+  // Each view swap unmounts the control that had focus (Import, then New import),
+  // which drops focus to <body>. Move it onto the content that replaced them, so a
+  // keyboard user keeps their place. Not on first paint, and not on a validation
+  // error — that never leaves the input view, so there is nothing to catch up to.
+  const view = pending ? 'loading' : showResult ? 'result' : 'input'
+  const dropzoneRef = useRef<HTMLInputElement>(null)
+  const resultRef = useRef<HTMLDivElement>(null)
+  const prevView = useRef<typeof view | null>(null)
+
+  useEffect(() => {
+    const from = prevView.current
+    prevView.current = view
+    if (from === null || from === view) return
+    if (view === 'result') resultRef.current?.focus()
+    else if (view === 'input') dropzoneRef.current?.focus()
+  }, [view])
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -139,13 +156,19 @@ export function Workspace({ fields, maxBytes }: { fields: readonly string[]; max
             pending={pending}
             file={file}
             maxBytes={maxBytes}
+            inputRef={dropzoneRef}
             onFileChosen={setFile}
           />
         </div>
       )}
 
       {showResult && (
-        <div className="grid min-h-0 min-w-0 lg:grid-cols-[minmax(280px,320px)_1fr]">
+        <div
+          ref={resultRef}
+          tabIndex={-1}
+          aria-label={`Import complete. ${state.outcome.summary.imported} imported, ${state.outcome.summary.skipped} skipped.`}
+          className="grid min-h-0 min-w-0 outline-none lg:grid-cols-[minmax(280px,320px)_1fr]"
+        >
           <aside className="border-border bg-sidebar hidden min-h-0 overflow-auto border-r lg:block">
             <PlanRail
               plan={state.outcome.plan}
@@ -172,10 +195,7 @@ export function Workspace({ fields, maxBytes }: { fields: readonly string[]; max
               />
             </details>
 
-            <div
-              className="border-border grid gap-3 border-b px-4 py-3 sm:px-6"
-              aria-live="polite"
-            >
+            <div className="border-border grid gap-3 border-b px-4 py-3 sm:px-6" aria-live="polite">
               <div className="flex flex-wrap gap-2">
                 <Stat
                   label="Imported"

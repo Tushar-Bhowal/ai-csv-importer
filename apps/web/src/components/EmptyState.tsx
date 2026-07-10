@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useState, type RefObject } from 'react'
 
 import { FolderIllustration } from '@/components/FolderIllustration'
 import { Button } from '@/components/ui/button'
@@ -16,11 +16,19 @@ interface EmptyStateProps {
   pending: boolean
   file: File | null
   maxBytes: number
+  // Owned by the parent so it can return focus here after an import.
+  inputRef: RefObject<HTMLInputElement | null>
   onFileChosen: (file: File | null) => void
 }
 
-export function EmptyState({ name, pending, file, maxBytes, onFileChosen }: EmptyStateProps) {
-  const inputRef = useRef<HTMLInputElement>(null)
+export function EmptyState({
+  name,
+  pending,
+  file,
+  maxBytes,
+  inputRef,
+  onFileChosen,
+}: EmptyStateProps) {
   const [dragging, setDragging] = useState(false)
 
   // A DataTransfer round-trip is the only way to seed a file input from a drop, and

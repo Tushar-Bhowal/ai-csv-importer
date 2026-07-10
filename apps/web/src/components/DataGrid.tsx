@@ -29,7 +29,10 @@ const STATUS_TONE: Record<string, { chip: string; dot: string }> = {
   SALE_DONE: { chip: 'bg-success/10 ring-success/25', dot: 'bg-success' },
   GOOD_LEAD_FOLLOW_UP: { chip: 'bg-primary/10 ring-primary/25', dot: 'bg-primary' },
   BAD_LEAD: { chip: 'bg-destructive/10 ring-destructive/25', dot: 'bg-destructive' },
-  DID_NOT_CONNECT: { chip: 'bg-muted-foreground/10 ring-muted-foreground/25', dot: 'bg-muted-foreground' },
+  DID_NOT_CONNECT: {
+    chip: 'bg-muted-foreground/10 ring-muted-foreground/25',
+    dot: 'bg-muted-foreground',
+  },
 }
 
 function StatusCell({ value }: { value: string }) {
@@ -43,7 +46,10 @@ function StatusCell({ value }: { value: string }) {
         tone?.chip ?? 'bg-muted ring-border',
       )}
     >
-      <span aria-hidden className={cn('size-1.5 shrink-0 rounded-full', tone?.dot ?? 'bg-border')} />
+      <span
+        aria-hidden
+        className={cn('size-1.5 shrink-0 rounded-full', tone?.dot ?? 'bg-border')}
+      />
       {STATUS_LABEL[value] ?? value}
     </span>
   )
@@ -130,59 +136,73 @@ export function DataGrid({
           aria-labelledby="tab-imported"
           className="min-h-0 min-w-0 overflow-auto"
         >
-          {/* Padding lives on the edge cells, not the scroll container: a scroll
-              container's padding-right is not painted past the scrolled content. */}
-          <table className="w-full border-collapse text-sm">
-            <thead className="bg-sidebar border-border sticky top-0 z-10 border-b">
-              <tr>
-                <th
-                  scope="col"
-                  className="text-muted-foreground bg-sidebar sticky left-0 z-20 h-10 pr-3 pl-4 text-right text-xs font-medium tabular-nums sm:pl-6"
-                >
-                  #
-                </th>
-                {fields.map((field) => (
-                  <th
-                    key={field}
-                    scope="col"
-                    className="text-muted-foreground h-10 px-3 text-left text-xs font-medium tracking-wide whitespace-nowrap capitalize last:pr-4 sm:last:pr-6"
-                  >
-                    {humanize(field)}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((record, i) => (
-                <tr key={i} className="border-border hover:bg-accent/40 border-b transition-colors">
-                  <td className="bg-background text-muted-foreground sticky left-0 py-2 pr-3 pl-4 text-right text-xs tabular-nums sm:pl-6">
-                    {i + 1}
-                  </td>
-                  {fields.map((field) => {
-                    const value = record[field as keyof CrmRecord]
-                    return (
-                      <td key={field} className="px-3 py-2 whitespace-nowrap last:pr-4 sm:last:pr-6">
-                        {field === 'crm_status' ? (
-                          <StatusCell value={value} />
-                        ) : value ? (
-                          <span className={cn(field.includes('mobile') && 'tabular-nums')}>
-                            {value}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </td>
-                    )
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {filtered.length === 0 && (
+          {records.length === 0 ? (
             <p className="text-muted-foreground p-8 text-center text-sm">
-              No record matches “{query}”.
+              No rows were imported. Every row was skipped — see the Skipped tab.
             </p>
+          ) : (
+            <>
+              {/* Padding lives on the edge cells, not the scroll container: a scroll
+              container's padding-right is not painted past the scrolled content. */}
+              <table className="w-full border-collapse text-sm">
+                <thead className="bg-sidebar border-border sticky top-0 z-10 border-b">
+                  <tr>
+                    <th
+                      scope="col"
+                      className="text-muted-foreground bg-sidebar sticky left-0 z-20 h-10 pr-3 pl-4 text-right text-xs font-medium tabular-nums sm:pl-6"
+                    >
+                      #
+                    </th>
+                    {fields.map((field) => (
+                      <th
+                        key={field}
+                        scope="col"
+                        className="text-muted-foreground h-10 px-3 text-left text-xs font-medium tracking-wide whitespace-nowrap capitalize last:pr-4 sm:last:pr-6"
+                      >
+                        {humanize(field)}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((record, i) => (
+                    <tr
+                      key={i}
+                      className="border-border hover:bg-accent/40 border-b transition-colors"
+                    >
+                      <td className="bg-background text-muted-foreground sticky left-0 py-2 pr-3 pl-4 text-right text-xs tabular-nums sm:pl-6">
+                        {i + 1}
+                      </td>
+                      {fields.map((field) => {
+                        const value = record[field as keyof CrmRecord]
+                        return (
+                          <td
+                            key={field}
+                            className="px-3 py-2 whitespace-nowrap last:pr-4 sm:last:pr-6"
+                          >
+                            {field === 'crm_status' ? (
+                              <StatusCell value={value} />
+                            ) : value ? (
+                              <span className={cn(field.includes('mobile') && 'tabular-nums')}>
+                                {value}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </td>
+                        )
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {filtered.length === 0 && (
+                <p className="text-muted-foreground p-8 text-center text-sm">
+                  No record matches “{query}”.
+                </p>
+              )}
+            </>
           )}
         </div>
       )}
