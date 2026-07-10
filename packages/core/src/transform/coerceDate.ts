@@ -30,6 +30,22 @@ function fromExcelSerial(text: string): Date | null {
 
 const inRange = (d: Date) => isValid(d) && d.getFullYear() > 1900 && d.getFullYear() < 2200
 
+// date-fns refuses `YYYY` and `DD` — they mean week-numbering year and day-of-
+// year, and are nearly always meant as `yyyy` and `dd`. Its own RangeError says
+// exactly that, so make the substitution it asks for.
+const dateFnsTokens = (format: string) => format.replace(/Y/g, 'y').replace(/D/g, 'd')
+
+// A format reaches here from an LLM plan, so it may still be unusable ('zzz'
+// throws on the unescaped latin char). This function's contract is a parseable
+// date or '' — never an exception, which would abort the whole import.
+function tryParse(text: string, format: string): Date | null {
+  try {
+    return parseWithFormat(text, dateFnsTokens(format), new Date())
+  } catch {
+    return null
+  }
+}
+
 // Returns a string `new Date()` always parses, or ''. Never a half-parsed date.
 // `sourceFormat` is a parameter because 13/05 and 05/13 are indistinguishable
 // from one row; only a reader of many rows knows which the file uses.
@@ -45,7 +61,10 @@ export function coerceDate(raw: string, sourceFormat?: string): string {
   }
 
   const candidates: Date[] = []
-  if (sourceFormat) candidates.push(parseWithFormat(text, sourceFormat, new Date()))
+  if (sourceFormat) {
+    const parsed = tryParse(text, sourceFormat)
+    if (parsed) candidates.push(parsed)
+  }
   candidates.push(parseISO(text))
   candidates.push(new Date(text))
 
