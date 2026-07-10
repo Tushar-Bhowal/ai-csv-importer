@@ -15,7 +15,7 @@
     "dev": "npm run build -w @groweasy/core && concurrently -k \"npm:dev:*\"",
     "dev:core": "npm run dev -w @groweasy/core",
     "dev:api": "npm run dev -w @groweasy/api",
-    "dev:web": "npm run dev -w @groweasy/web",
+    "dev:web": "sh -c 'export GOOGLE_GENERATIVE_AI_API_KEY=$(sed -n \"s/^GOOGLE_GENERATIVE_AI_API_KEY=//p\" .env 2>/dev/null); exec npm run dev -w @groweasy/web'",
     "build": "npm run build -w @groweasy/core && npm run build -w @groweasy/web",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "vitest run",
