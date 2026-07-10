@@ -15,15 +15,16 @@ interface EmptyStateProps {
   name: string
   pending: boolean
   file: File | null
+  maxBytes: number
   onFileChosen: (file: File | null) => void
 }
 
-export function EmptyState({ name, pending, file, onFileChosen }: EmptyStateProps) {
+export function EmptyState({ name, pending, file, maxBytes, onFileChosen }: EmptyStateProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
 
-  // A DataTransfer round-trip is the only way to seed a file input from a drop,
-  // and the input must hold the file for the form action to receive it.
+  // A DataTransfer round-trip is the only way to seed a file input from a drop, and
+  // the input must hold the file so the native picker shows it as the current choice.
   const acceptDrop = (event: React.DragEvent) => {
     event.preventDefault()
     setDragging(false)
@@ -98,7 +99,9 @@ export function EmptyState({ name, pending, file, onFileChosen }: EmptyStateProp
                     </span>{' '}
                     to upload.
                   </p>
-                  <p className="text-muted-foreground text-sm">File format : CSV. Max 4.0 MB</p>
+                  <p className="text-muted-foreground text-sm">
+                    File format : CSV. Max {(maxBytes / 1024 / 1024).toFixed(1)} MB
+                  </p>
                 </>
               )}
             </div>

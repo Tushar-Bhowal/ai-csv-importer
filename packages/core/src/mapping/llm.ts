@@ -133,7 +133,12 @@ export async function refinePlan(
       temperature: 0,
       providerOptions: THINKING_OFF,
       maxRetries: MAX_RETRIES,
-      abortSignal: options.signal ?? AbortSignal.timeout(TIMEOUT_MS),
+      // The caller's signal reports a client disconnect. It adds a way to give up
+      // early; it must never replace the deadline, or a client that stays connected
+      // waits on the model until the platform kills the function.
+      abortSignal: options.signal
+        ? AbortSignal.any([options.signal, AbortSignal.timeout(TIMEOUT_MS)])
+        : AbortSignal.timeout(TIMEOUT_MS),
     })
 
     const seconds = ((performance.now() - startedAt) / 1000).toFixed(1)

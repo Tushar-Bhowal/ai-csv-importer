@@ -1,19 +1,8 @@
-import {
-  applyPlan,
-  CRM_FIELDS,
-  csvSafe,
-  hasLlmKey,
-  parseCsv,
-  refinePlan,
-  type CrmRecord,
-  type ImportSummary,
-  type MappingPlan,
-  type SkippedRow,
-} from '@groweasy/core'
+import type { CrmRecord, ImportSummary, MappingPlan, SkippedRow } from '@groweasy/core'
 
-export const MAX_UPLOAD_BYTES = 4 * 1024 * 1024
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
-const PREVIEW_ROWS = 5
+const IMPORT_TIMEOUT_MS = 60_000
 
 export interface ImportOutcome {
   headers: string[]
@@ -25,57 +14,33 @@ export interface ImportOutcome {
   csv: string
 }
 
-const crmDateTime = (d: Date): string =>
-  `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(
-    d.getUTCDate(),
-  ).padStart(2, '0')} ${String(d.getUTCHours()).padStart(2, '0')}:${String(
-    d.getUTCMinutes(),
-  ).padStart(2, '0')}:${String(d.getUTCSeconds()).padStart(2, '0')}`
+export type ImportState =
+  | { kind: 'idle' }
+  | { kind: 'error'; message: string }
+  | { kind: 'done'; fileName: string; outcome: ImportOutcome }
 
-// csvSafe escapes newlines and neutralises formula triggers; quoting is this
-// layer's job, because only here is a record being written out as CSV.
-const cell = (value: string): string => `"${csvSafe(value).replace(/"/g, '""')}"`
-
-function toCsv(records: readonly CrmRecord[]): string {
-  const lines = [CRM_FIELDS.map(cell).join(',')]
-  for (const record of records) lines.push(CRM_FIELDS.map((f) => cell(record[f])).join(','))
-  return lines.join('\r\n')
+interface ErrorEnvelope {
+  error?: { message?: string }
 }
 
 /**
- * The whole product, server-side. Phase 3 moves this behind the Express API and
- * this function becomes a `fetch`. Nothing above it needs to change.
+ * Only *types* cross from `@groweasy/core` into this module, and types erase. A value
+ * import would pull the barrel — and with it the AI SDK, papaparse, libphonenumber-js
+ * and date-fns — into the browser bundle.
  */
-export async function importCsv(
-  bytes: Uint8Array,
-  importedAt = crmDateTime(new Date()),
-): Promise<ImportOutcome> {
-  const startedAt = performance.now()
-
-  const parsed = parseCsv(bytes)
-
-  const plan = await refinePlan(parsed.headers, parsed.rows, {
-    headerRowIndex: parsed.headerRowIndex,
+export async function importCsv(file: File): Promise<ImportOutcome> {
+  const response = await fetch(`${API_URL}/api/v1/import`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/csv' },
+    body: file,
+    signal: AbortSignal.timeout(IMPORT_TIMEOUT_MS),
   })
 
-  const { records, skipped } = applyPlan(parsed.rows, plan, importedAt)
-
-  return {
-    headers: parsed.headers,
-    previewRows: parsed.rows.slice(0, PREVIEW_ROWS).map((r) => r.cells),
-    plan,
-    records,
-    skipped,
-    summary: {
-      totalRows: parsed.rows.length,
-      imported: records.length,
-      skipped: skipped.length,
-      durationMs: performance.now() - startedAt,
-      llmCalls: plan.degraded ? 0 : 1,
-      degraded: plan.degraded,
-      // refinePlan degrades for exactly two reasons, and only it knows the key.
-      ...(plan.degraded ? { degradedReason: hasLlmKey() ? 'call_failed' : 'no_key' } : {}),
-    },
-    csv: toCsv(records),
+  if (!response.ok) {
+    // The API answers every failure with { error: { code, message, requestId } }.
+    const body = (await response.json().catch(() => null)) as ErrorEnvelope | null
+    throw new Error(body?.error?.message ?? `The import failed (HTTP ${response.status}).`)
   }
+
+  return (await response.json()) as ImportOutcome
 }

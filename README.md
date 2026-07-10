@@ -3,19 +3,19 @@
 Upload any CSV of leads. One AI call works out what the columns mean; deterministic TypeScript
 converts every row into GrowEasy CRM format.
 
-> **Status: the transform core and the UI are built. The AI call is not.**
-> Columns are matched by name today, so every import reports `degraded: true`. The one AI mapping
-> call lands in Phase 2, the Express API in Phase 3; until then the UI runs `packages/core`
-> directly through a server action. This README is replaced in Phase 7.
+> **Status: the core, the AI mapping call, the API and the UI are all built.**
+> The browser posts the CSV to the Express API; the API makes one AI call per file and returns clean
+> records. Without a key it falls back to heuristic column matching, reports `degraded: true`, and
+> says so in the UI. This README is replaced in Phase 7.
 
 | Phase | | |
 | --- | --- | --- |
 | 0 | scaffold, deploy, probes | done |
-| 1 | `packages/core` — parse, transform, 129 tests, zero AI | done |
-| 2 | **one AI call → `MappingPlan`** | **next** |
-| 3 | Express API + upload route | |
+| 1 | `packages/core` — parse, transform, zero AI | done |
+| 2 | one AI call → `MappingPlan` | done |
+| 3 | Express API + upload route | done |
 | 4 | Next.js UI | done, ahead of 2 and 3 |
-| 5 | eval harness — cost, latency, mapping accuracy | |
+| 5 | **eval harness — cost, latency, mapping accuracy** | **next** |
 | 6 | robustness | |
 | 7 | README, decisions, submit | |
 
@@ -69,6 +69,37 @@ npm run typecheck    # project references + web + test configs
 npm test             # Vitest, packages/core
 npm run lint
 ```
+
+## The API
+
+The browser posts the CSV straight to Express. The file crosses the network once, and the Gemini key
+lives only on the API.
+
+| | |
+| --- | --- |
+| `GET /api/v1/health` | `{ status, llm: available \| degraded, version, allowedOrigins }` |
+| `POST /api/v1/import` | the CSV as the **raw request body**, `Content-Type: text/csv`, max 4 MB |
+
+```bash
+curl -X POST http://localhost:3001/api/v1/import \
+  -H 'Content-Type: text/csv' \
+  --data-binary @leads.csv
+```
+
+`200` returns `{ headers, previewRows, plan, records, skipped, summary, csv }` — the `ImportResult`
+schema in `packages/core`. There is no multipart parse: nothing but our own web app calls this route,
+and it has the bytes already. `express.raw` enforces the 4 MB cap *during* the stream, which is the
+only property multer was wanted for.
+
+Every failure answers with one envelope, `{ error: { code, message, requestId } }`:
+
+| | |
+| --- | --- |
+| `400` | the file is empty |
+| `413` | over 4 MB — Vercel rejects a 5 MB body before the function runs, so our ceiling sits under it |
+| `415` | `Content-Type` was not `text/csv` |
+| `422` | a header row, but no data rows |
+| `500` | the message is always `Something went wrong on our side.` — an internal message can carry a path or a credential |
 
 ## Layout
 
@@ -132,6 +163,14 @@ Settings → Environment Variables:
 | `WEB_ORIGIN` | `<web-url>` — no trailing slash |
 | `GOOGLE_GENERATIVE_AI_API_KEY` | your key (optional; without it the app runs on heuristics) |
 
+The browser posts the CSV to the API cross-origin, so a wrong `WEB_ORIGIN` fails every import.
+
+The function's `maxDuration` is capped at `60s` in `apps/api/vercel.json` — comfortably above the
+30s in-code Gemini timeout, well under Vercel's 300s default, as a runaway-cost guard. Express
+becomes a single function Vercel names `index`, so the glob has to be `**/*`; a source-path glob like
+`src/app.ts` silently matches nothing (verified against `vercel build`). The Next.js-style
+`export const maxDuration` does **not** apply to the Express preset.
+
 Then **Deployments → ⋯ → Redeploy.** Environment variables only take effect on a new build.
 
 > Both variables are read at build/boot time, not per request. Change either one and you must
@@ -141,23 +180,24 @@ Then **Deployments → ⋯ → Redeploy.** Environment variables only take effec
 ### Then verify the deployment, before building anything on top of it
 
 ```bash
-# 1. the API is up
+# 1. the API is up, and knows whether it has a key
 curl https://<api-url>/api/v1/health
 
-# 2. SSE streams rather than buffering — three ticks, one second apart.
-#    If they all arrive at once after 3s, the progress stream would be a lie in production.
-curl -N https://<api-url>/api/v1/probe/stream
+# 2. a real import, end to end
+curl -X POST https://<api-url>/api/v1/import \
+  -H 'Content-Type: text/csv' --data-binary @leads.csv
 
-# 3. the platform's request body ceiling. Must be 200, not 413.
-#    Vercel Functions cap below the 5 MB the assignment mentions.
+# 3. the 4 MB ceiling holds. Must be 413 with our envelope, not Vercel's raw error page.
 head -c 5242880 /dev/zero | tr '\0' 'a' > /tmp/5mb.csv
-curl -s -o /dev/null -w '%{http_code}\n' -F file=@/tmp/5mb.csv https://<api-url>/api/v1/probe/echo
+curl -s -X POST https://<api-url>/api/v1/import \
+  -H 'Content-Type: text/csv' --data-binary @/tmp/5mb.csv
 ```
 
-4. Open the web URL. The health card must read `ok` — that is the cross-origin CORS check.
+4. Open the web URL. The header must read `API v0.1.0` — that is the cross-origin CORS check — and
+   an upload must complete.
 
-`/api/v1/probe/*` exists only to answer (2) and (3) on the real platform rather than on localhost.
-It is deleted at the end of Phase 3.
+Two throwaway probes at `/api/v1/probe/*` answered the SSE-buffering and body-ceiling questions on
+the real platform during Phase 0. Both answers are settled, and the probes were deleted in Phase 3.
 
 ### If a deploy goes wrong
 

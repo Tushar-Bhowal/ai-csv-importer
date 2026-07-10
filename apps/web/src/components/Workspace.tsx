@@ -1,9 +1,8 @@
 'use client'
 
 import { InfoIcon } from 'lucide-react'
-import { useActionState, useState } from 'react'
+import { useState } from 'react'
 
-import { importCsvAction, type ImportState } from '@/app/actions'
 import { ApiStatus } from '@/components/ApiStatus'
 import { DataGrid } from '@/components/DataGrid'
 import { EmptyState } from '@/components/EmptyState'
@@ -11,8 +10,11 @@ import { PlanRail } from '@/components/PlanRail'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { importCsv, type ImportState } from '@/lib/import'
 
 const INITIAL: ImportState = { kind: 'idle' }
+
+const MB = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`
 
 function Stat({
   label,
@@ -34,19 +36,54 @@ function Stat({
   )
 }
 
-export function Workspace({ fields }: { fields: readonly string[] }) {
-  const [state, formAction, pending] = useActionState(importCsvAction, INITIAL)
+function failureMessage(err: unknown): string {
+  // AbortSignal.timeout rejects with a DOMException; a dead or CORS-blocked API
+  // rejects with a TypeError. Neither message is fit to show a human.
+  if (err instanceof DOMException && err.name === 'TimeoutError') {
+    return 'The import took too long and was cancelled. Try a smaller file.'
+  }
+  if (err instanceof TypeError) {
+    return 'Could not reach the import API. Check that it is running.'
+  }
+  return err instanceof Error ? err.message : 'That file could not be read as CSV.'
+}
+
+export function Workspace({ fields, maxBytes }: { fields: readonly string[]; maxBytes: number }) {
+  const [state, setState] = useState<ImportState>(INITIAL)
+  const [pending, setPending] = useState(false)
   const [file, setFile] = useState<File | null>(null)
   const [startingOver, setStartingOver] = useState(false)
 
   const showResult = state.kind === 'done' && !pending && !startingOver
 
+  async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setStartingOver(false)
+
+    if (!file || file.size === 0) {
+      setState({ kind: 'error', message: 'Choose a CSV file to import.' })
+      return
+    }
+    if (file.size > maxBytes) {
+      setState({
+        kind: 'error',
+        message: `That file is ${MB(file.size)}. The limit is ${MB(maxBytes)}.`,
+      })
+      return
+    }
+
+    setPending(true)
+    try {
+      setState({ kind: 'done', fileName: file.name, outcome: await importCsv(file) })
+    } catch (err) {
+      setState({ kind: 'error', message: failureMessage(err) })
+    } finally {
+      setPending(false)
+    }
+  }
+
   return (
-    <form
-      action={formAction}
-      onSubmit={() => setStartingOver(false)}
-      className="grid h-dvh grid-rows-[auto_1fr] overflow-hidden"
-    >
+    <form onSubmit={onSubmit} className="grid h-dvh grid-rows-[auto_1fr] overflow-hidden">
       <header className="border-border bg-background shadow-2xs z-20 flex items-center justify-between gap-4 border-b px-5 py-2.5">
         <div className="flex items-center gap-3">
           <span aria-hidden className="from-chart-1 to-chart-3 size-5 rounded-md bg-linear-to-br" />
@@ -97,7 +134,13 @@ export function Workspace({ fields }: { fields: readonly string[] }) {
               </Alert>
             </div>
           )}
-          <EmptyState name="file" pending={pending} file={file} onFileChosen={setFile} />
+          <EmptyState
+            name="file"
+            pending={pending}
+            file={file}
+            maxBytes={maxBytes}
+            onFileChosen={setFile}
+          />
         </div>
       )}
 

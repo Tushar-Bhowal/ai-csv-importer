@@ -1,9 +1,9 @@
-import { CRM_FIELDS } from '@groweasy/core'
+import { CRM_FIELDS, MAX_UPLOAD_BYTES } from '@groweasy/core'
 
 import { Workspace } from '@/components/Workspace'
 
-// CRM_FIELDS crosses the server boundary as a prop so the client bundle never
-// pulls in core's parser, phone, and date dependencies.
+// Both cross the server boundary as props so the client bundle never pulls in
+// core's parser, phone, and date dependencies.
 export default function Home() {
-  return <Workspace fields={CRM_FIELDS} />
+  return <Workspace fields={CRM_FIELDS} maxBytes={MAX_UPLOAD_BYTES} />
 }
