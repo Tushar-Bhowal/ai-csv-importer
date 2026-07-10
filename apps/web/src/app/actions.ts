@@ -24,7 +24,7 @@ export async function importCsvAction(_prev: ImportState, formData: FormData): P
 
   try {
     const bytes = new Uint8Array(await file.arrayBuffer())
-    const outcome = importCsv(bytes)
+    const outcome = await importCsv(bytes)
 
     if (outcome.summary.totalRows === 0) {
       return { kind: 'error', message: 'That file has a header row but no data rows.' }

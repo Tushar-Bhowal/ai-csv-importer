@@ -2,9 +2,9 @@ import {
   applyPlan,
   CRM_FIELDS,
   csvSafe,
-  heuristicPlan,
+  hasLlmKey,
   parseCsv,
-  sanitizePlan,
+  refinePlan,
   type CrmRecord,
   type ImportSummary,
   type MappingPlan,
@@ -13,7 +13,7 @@ import {
 
 export const MAX_UPLOAD_BYTES = 4 * 1024 * 1024
 
-const SAMPLE_ROWS = 30
+const PREVIEW_ROWS = 5
 
 export interface ImportOutcome {
   headers: string[]
@@ -43,29 +43,26 @@ function toCsv(records: readonly CrmRecord[]): string {
 }
 
 /**
- * The whole product, server-side. Phase 2 replaces `heuristicPlan` with the
- * single AI mapping call; Phase 3 moves this behind the Express API and this
- * function becomes a `fetch`. Nothing above it needs to change either time.
+ * The whole product, server-side. Phase 3 moves this behind the Express API and
+ * this function becomes a `fetch`. Nothing above it needs to change.
  */
-export function importCsv(bytes: Uint8Array, importedAt = crmDateTime(new Date())): ImportOutcome {
+export async function importCsv(
+  bytes: Uint8Array,
+  importedAt = crmDateTime(new Date()),
+): Promise<ImportOutcome> {
   const startedAt = performance.now()
 
   const parsed = parseCsv(bytes)
-  const previewRows = parsed.rows.slice(0, SAMPLE_ROWS).map((r) => r.cells)
 
-  const plan = sanitizePlan(
-    heuristicPlan(parsed.headers, {
-      headerRowIndex: parsed.headerRowIndex,
-      sampleRows: previewRows,
-    }),
-    parsed.headers,
-  )
+  const plan = await refinePlan(parsed.headers, parsed.rows, {
+    headerRowIndex: parsed.headerRowIndex,
+  })
 
   const { records, skipped } = applyPlan(parsed.rows, plan, importedAt)
 
   return {
     headers: parsed.headers,
-    previewRows: previewRows.slice(0, 5),
+    previewRows: parsed.rows.slice(0, PREVIEW_ROWS).map((r) => r.cells),
     plan,
     records,
     skipped,
@@ -74,8 +71,10 @@ export function importCsv(bytes: Uint8Array, importedAt = crmDateTime(new Date()
       imported: records.length,
       skipped: skipped.length,
       durationMs: performance.now() - startedAt,
-      llmCalls: 0,
+      llmCalls: plan.degraded ? 0 : 1,
       degraded: plan.degraded,
+      // refinePlan degrades for exactly two reasons, and only it knows the key.
+      ...(plan.degraded ? { degradedReason: hasLlmKey() ? 'call_failed' : 'no_key' } : {}),
     },
     csv: toCsv(records),
   }

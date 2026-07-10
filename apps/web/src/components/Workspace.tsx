@@ -162,9 +162,19 @@ export function Workspace({ fields }: { fields: readonly string[] }) {
                   <InfoIcon aria-hidden />
                   <AlertTitle>Heuristic mapping</AlertTitle>
                   <AlertDescription>
-                    No API key is set, so columns were matched by name alone and an ambiguous date
-                    format may be read the wrong way round. Set{' '}
-                    <code>GOOGLE_GENERATIVE_AI_API_KEY</code> to enable AI mapping.
+                    {state.outcome.summary.degradedReason === 'call_failed' ? (
+                      <>
+                        The AI mapping call failed, so columns were matched by name alone and an
+                        ambiguous date format may be read the wrong way round. Check that{' '}
+                        <code>GOOGLE_GENERATIVE_AI_API_KEY</code> is valid.
+                      </>
+                    ) : (
+                      <>
+                        No API key is set, so columns were matched by name alone and an ambiguous
+                        date format may be read the wrong way round. Set{' '}
+                        <code>GOOGLE_GENERATIVE_AI_API_KEY</code> to enable AI mapping.
+                      </>
+                    )}
                   </AlertDescription>
                 </Alert>
               )}
