@@ -4,7 +4,7 @@ import { APICallError, generateObject, NoObjectGeneratedError, RetryError } from
 import type { CsvRow } from '../parse/parseCsv.js'
 import { fromDraft, PlanDraftSchema, sanitizePlan, toDraft, type MappingPlan } from '../schema/plan.js'
 import { heuristicPlan } from './heuristic.js'
-import { buildPrompt, SYSTEM_PROMPT } from './prompt.js'
+import { buildPrompt, MAX_PROMPT_COLUMNS, SYSTEM_PROMPT } from './prompt.js'
 import { sampleRows } from './sample.js'
 
 // gemini-2.5-flash and -flash-lite now 404 for a new API key: "no longer available
@@ -27,6 +27,15 @@ const TIMEOUT_MS = 30_000
 // transient, so we fall back rather than pay for the same answer twice.
 const MAX_RETRIES = 3
 
+// Bounds the cost of one call. A plan for the MAX_PROMPT_COLUMNS-wide cap sits
+// well under this; the ceiling only stops a pathological generation running away.
+const MAX_OUTPUT_TOKENS = 8192
+
+// A wait that alone would spend half the deadline cannot pay off — the call that
+// follows still needs 5–28s — so we abandon and fall back to the heuristic in a
+// beat instead of sleeping to the deadline for the same answer.
+const MAX_RETRY_AFTER_MS = TIMEOUT_MS / 2
+
 const MAX_LOGGED_BODY = 400
 
 export interface RefinePlanOptions {
@@ -35,6 +44,17 @@ export interface RefinePlanOptions {
 }
 
 const oneLine = (text: string) => text.replace(/\s+/g, ' ').slice(0, MAX_LOGGED_BODY)
+
+// retry-after is either a count of seconds or an HTTP date. Returns the wait in
+// milliseconds, or null when the header is absent or unparseable.
+export function retryAfterMs(response: Response): number | null {
+  const header = response.headers.get('retry-after')
+  if (!header) return null
+  const seconds = Number(header)
+  if (Number.isFinite(seconds)) return seconds * 1000
+  const at = Date.parse(header)
+  return Number.isNaN(at) ? null : at - Date.now()
+}
 
 /**
  * Every attempt, logged as it happens.
@@ -50,13 +70,40 @@ const loggingFetch: typeof fetch = async (input, init) => {
   const response = await fetch(input, init)
   const ms = Math.round(performance.now() - startedAt)
 
-  if (response.ok) console.info(`[core] gemini HTTP ${response.status} in ${ms}ms`)
-  else console.warn(`[core] gemini HTTP ${response.status} in ${ms}ms — ${oneLine(await response.clone().text())}`)
+  if (response.ok) {
+    console.info(`[core] gemini HTTP ${response.status} in ${ms}ms`)
+    return response
+  }
+
+  console.warn(`[core] gemini HTTP ${response.status} in ${ms}ms — ${oneLine(await response.clone().text())}`)
+
+  // A rate-limit or overload can name a retry-after we could never wait out inside
+  // the deadline. Letting the SDK honour it only sleeps through the budget and
+  // returns the heuristic anyway, so abandon now and let the caller fall back fast.
+  const retryAfter = retryAfterMs(response)
+  if ((response.status === 429 || response.status === 503) && retryAfter !== null && retryAfter >= MAX_RETRY_AFTER_MS) {
+    throw new Error(`gemini asked to wait ${Math.round(retryAfter / 1000)}s, longer than the ${TIMEOUT_MS / 1000}s budget`)
+  }
 
   return response
 }
 
 const google = createGoogleGenerativeAI({ fetch: loggingFetch })
+
+// The model only ever sees the first MAX_PROMPT_COLUMNS headers, so it cannot place
+// the rest. Rather than lose their data, append the surplus to crm_note — the same
+// lossless channel every unmapped column already uses. Only touches wide files.
+export function preserveOverflow(plan: MappingPlan, headers: readonly string[]): MappingPlan {
+  if (headers.length <= MAX_PROMPT_COLUMNS) return plan
+
+  const placed = new Set([
+    ...plan.columns.flatMap((c) => c.sourceColumns),
+    ...plan.ignoreColumns,
+    ...plan.noteColumns,
+  ])
+  const overflow = headers.slice(MAX_PROMPT_COLUMNS).filter((h) => !placed.has(h))
+  return overflow.length > 0 ? { ...plan, noteColumns: [...plan.noteColumns, ...overflow] } : plan
+}
 
 /** The one place the key's presence is decided. Callers report *why* they degraded. */
 export const hasLlmKey = (): boolean => Boolean(process.env['GOOGLE_GENERATIVE_AI_API_KEY'])
@@ -122,6 +169,10 @@ export async function refinePlan(
     return fallback
   }
 
+  if (headers.length > MAX_PROMPT_COLUMNS) {
+    console.warn(`[core] ${headers.length} columns; sending the first ${MAX_PROMPT_COLUMNS} to the model`)
+  }
+
   const startedAt = performance.now()
 
   try {
@@ -131,6 +182,7 @@ export async function refinePlan(
       system: SYSTEM_PROMPT,
       prompt: buildPrompt({ headers, sample, draft: toDraft(fallback) }),
       temperature: 0,
+      maxOutputTokens: MAX_OUTPUT_TOKENS,
       providerOptions: THINKING_OFF,
       maxRetries: MAX_RETRIES,
       // The caller's signal reports a client disconnect. It adds a way to give up
@@ -144,7 +196,7 @@ export async function refinePlan(
     const seconds = ((performance.now() - startedAt) / 1000).toFixed(1)
     console.info(`[core] mapping plan from ${MODEL} — ${usage.totalTokens ?? '?'} tokens, ${seconds}s`)
 
-    return sanitizePlan(fromDraft(object, options.headerRowIndex ?? 0), headers)
+    return preserveOverflow(sanitizePlan(fromDraft(object, options.headerRowIndex ?? 0), headers), headers)
   } catch (error) {
     // The upload must succeed without the model, and the caller reads `degraded`.
     // But a key that is merely wrong would degrade every import in silence.

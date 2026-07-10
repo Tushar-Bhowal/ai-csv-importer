@@ -63,21 +63,42 @@ You are given a draft plan produced by naive header-name matching. Correct it. I
 values, so it misses columns whose names give nothing away, and it never guesses enum maps or date
 formats. Keep what it got right.`
 
+// The sample is the bulk of the prompt, and its size scales with the column
+// count — the one prompt input that the row cap (30) and cell cap (120 chars) do
+// not already bound. A real lead file has nowhere near this many columns; the cap
+// only fences a pathological or hostile file, whose surplus columns are dropped.
+export const MAX_PROMPT_COLUMNS = 60
+
+// The draft must reference only the headers the model is shown; otherwise the
+// prompt tells it to correct a plan naming columns it just declared invalid.
+function capDraft(draft: PlanDraft, shown: ReadonlySet<string>): PlanDraft {
+  return {
+    columns: draft.columns
+      .map((c) => ({ ...c, sourceColumns: c.sourceColumns.filter((s) => shown.has(s)) }))
+      .filter((c) => c.sourceColumns.length > 0),
+    noteColumns: draft.noteColumns.filter((c) => shown.has(c)),
+    ignoreColumns: draft.ignoreColumns.filter((c) => shown.has(c)),
+  }
+}
+
 export function buildPrompt(input: {
   headers: readonly string[]
   sample: readonly Record<string, string>[]
   draft: PlanDraft
 }): string {
-  // Positional, not one object per row: a 200-column file would otherwise repeat
-  // every header name 30 times over, and the sample is the bulk of the prompt.
-  const rows = input.sample.map((row) => input.headers.map((header) => row[header] ?? ''))
+  const headers = input.headers.slice(0, MAX_PROMPT_COLUMNS)
+  const shown = new Set(headers)
+
+  // Positional, not one object per row: a wide file would otherwise repeat every
+  // header name once per sampled row, and the sample is the bulk of the prompt.
+  const rows = input.sample.map((row) => headers.map((header) => row[header] ?? ''))
 
   return [
     'The real header row. Only these names are valid in your answer:',
-    JSON.stringify(input.headers),
+    JSON.stringify(headers),
     '',
     'The draft plan to correct:',
-    JSON.stringify(input.draft),
+    JSON.stringify(capDraft(input.draft, shown)),
     '',
     `A sample of ${rows.length} rows follows, between the markers. Each row is an array of`,
     'values in the same order as the header row above.',

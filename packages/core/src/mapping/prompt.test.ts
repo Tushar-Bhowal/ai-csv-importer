@@ -64,6 +64,20 @@ describe('buildPrompt', () => {
     expect(gapped).toContain('[["1","","3"]]')
   })
 
+  it('caps the columns it sends, so a pathological width cannot blow up the prompt', () => {
+    const headers = Array.from({ length: 200 }, (_, i) => `col_${i}`)
+    const wide = buildPrompt({
+      headers,
+      sample: [Object.fromEntries(headers.map((h) => [h, 'x']))],
+      draft,
+    })
+
+    expect(wide).toContain('"col_0"')
+    expect(wide).toContain('"col_59"')
+    expect(wide).not.toContain('"col_60"')
+    expect(wide).not.toContain('"col_199"')
+  })
+
   it('fences the uploaded rows and labels them untrusted', () => {
     const start = prompt.indexOf('--- BEGIN UNTRUSTED CSV SAMPLE ---')
     const end = prompt.indexOf('--- END UNTRUSTED CSV SAMPLE ---')
