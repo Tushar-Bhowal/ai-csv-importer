@@ -20,7 +20,10 @@ export function detectHeaderRow(rows: readonly string[][], lookahead = 10): numb
     const distinct = new Set(filled.map((c) => c.trim().toLowerCase())).size
     score -= filled.length - distinct
 
-    const below = rows.slice(i + 1, i + 4)
+    // Blank rows — a trailing newline's empty final row, or a separator line —
+    // carry no width, so they must not break the agreement between a header and
+    // the data under it. Compare only the non-blank rows in the window.
+    const below = rows.slice(i + 1, i + 4).filter((r) => r.some((c) => c.trim() !== ''))
     if (below.length > 0 && below.every((r) => r.length === row.length)) score += 3
 
     if (score > bestScore) {

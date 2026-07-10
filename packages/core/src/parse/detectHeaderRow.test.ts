@@ -13,6 +13,22 @@ describe('detectHeaderRow', () => {
     ).toBe(3)
   })
 
+  it('skips a preamble even when a trailing blank row sits below the data', () => {
+    // A trailing newline makes the parser emit an empty final row. It must not
+    // cost the real header its width bonus, or the title row wins the tie.
+    expect(
+      detectHeaderRow([
+        ['Leads Export', '', '', ''],
+        ['Generated 2026-07-05', '', '', ''],
+        ['', '', '', ''],
+        ['Full Name', 'Email ID', 'Phone', 'Created'],
+        ['Sanjay', 's@x.com', '+919812300011', '10/06/2026'],
+        ['Pooja', 'p@x.com', '+919812300022', '22/06/2026'],
+        [''],
+      ]),
+    ).toBe(3)
+  })
+
   it('penalises cells that look like data, not labels', () => {
     expect(detectHeaderRow([['email', 'email', ''], ['a@b.com', 'c@d.com', 'x']])).toBe(0)
   })
