@@ -1,7 +1,7 @@
 'use client'
 
 import { SearchIcon } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 
 import type { CrmRecord, SkippedRow } from '@groweasy/core'
 
@@ -66,6 +66,7 @@ export function DataGrid({
 }) {
   const [tab, setTab] = useState<Tab>('imported')
   const [query, setQuery] = useState('')
+  const tabRefs = useRef<Partial<Record<Tab, HTMLButtonElement | null>>>({})
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -78,16 +79,45 @@ export function DataGrid({
     { id: 'skipped', label: 'Skipped', count: skipped.length },
   ]
 
+  // ARIA APG tabs: only the selected tab is in the Tab order; arrows move focus
+  // and selection together, Home/End jump to the ends.
+  function onTabKeyDown(event: React.KeyboardEvent) {
+    const order = tabs.map((t) => t.id)
+    const current = order.indexOf(tab)
+    let next: number
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') next = (current + 1) % order.length
+    else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp')
+      next = (current - 1 + order.length) % order.length
+    else if (event.key === 'Home') next = 0
+    else if (event.key === 'End') next = order.length - 1
+    else return
+
+    event.preventDefault()
+    const id = order[next]
+    if (!id) return
+    setTab(id)
+    tabRefs.current[id]?.focus()
+  }
+
   return (
     <section className="grid min-h-0 min-w-0 grid-rows-[auto_1fr]">
       <div className="border-border flex flex-wrap items-center justify-between gap-3 border-b px-4 py-2.5 sm:px-6">
-        <div role="tablist" aria-label="Import results" className="flex gap-1">
+        <div
+          role="tablist"
+          aria-label="Import results"
+          className="flex gap-1"
+          onKeyDown={onTabKeyDown}
+        >
           {tabs.map((t) => (
             <button
               key={t.id}
               role="tab"
               type="button"
               id={`tab-${t.id}`}
+              ref={(el) => {
+                tabRefs.current[t.id] = el
+              }}
+              tabIndex={tab === t.id ? 0 : -1}
               aria-selected={tab === t.id}
               aria-controls={`panel-${t.id}`}
               onClick={() => setTab(t.id)}
@@ -134,7 +164,8 @@ export function DataGrid({
           id="panel-imported"
           role="tabpanel"
           aria-labelledby="tab-imported"
-          className="min-h-0 min-w-0 overflow-auto"
+          tabIndex={0}
+          className="focus-visible:ring-ring/50 min-h-0 min-w-0 overflow-auto outline-none focus-visible:ring-2 focus-visible:ring-inset"
         >
           {records.length === 0 ? (
             <p className="text-muted-foreground p-8 text-center text-sm">
@@ -212,7 +243,8 @@ export function DataGrid({
           id="panel-skipped"
           role="tabpanel"
           aria-labelledby="tab-skipped"
-          className="min-h-0 min-w-0 overflow-auto"
+          tabIndex={0}
+          className="focus-visible:ring-ring/50 min-h-0 min-w-0 overflow-auto outline-none focus-visible:ring-2 focus-visible:ring-inset"
         >
           {skipped.length === 0 ? (
             <p className="text-muted-foreground p-8 text-center text-sm">
