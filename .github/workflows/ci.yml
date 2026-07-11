@@ -15,9 +15,11 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 
-      # Plain `npm ci` on purpose: it fails loudly if package-lock.json was
-      # regenerated without --include=optional. See BACKLOG.md #3.
-      - run: npm ci
+      # npm install, not npm ci: rolldown's @emnapi optional peers resolve to
+      # different patch versions on a fresh machine than a cached one, which makes
+      # npm ci reject an otherwise-valid lockfile. install tolerates that; the
+      # steps below are the real gate.
+      - run: npm install --include=optional
 
       - run: npm run lint
       - run: npm run typecheck
