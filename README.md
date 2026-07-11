@@ -6,8 +6,8 @@ deterministic TypeScript does the actual converting.
 
 Built for the GrowEasy **Software Developer (Full-Time)** take-home.
 
-- **Live app:** _<web deployment URL>_
-- **Repository:** _<public GitHub URL>_
+- **Live app:** <https://ai-csv-importer-web.vercel.app>
+- **Repository:** <https://github.com/Tushar-Bhowal/ai-csv-importer>
 
 ---
 
@@ -286,6 +286,6 @@ read at build/boot time — change either and redeploy that project.
 
 ## Submission
 
-- **Hosted app:** _<web deployment URL>_
-- **Repository:** _<public GitHub URL>_
+- **Hosted app:** <https://ai-csv-importer-web.vercel.app>
+- **Repository:** <https://github.com/Tushar-Bhowal/ai-csv-importer>
 - **Position:** Software Developer (Full-Time)
