@@ -8,7 +8,6 @@ export interface PreviewData {
 
 export const PREVIEW_ROW_CAP = 100
 
-/** Thrown for a file a human should be told about, with a message fit to show. */
 export class PreviewError extends Error {}
 
 // Mirrors packages/core/src/parse/parseCsv.ts: real exports carry blank and
@@ -30,10 +29,8 @@ const isBlankRow = (row: readonly string[]) => row.every((c) => c.trim() === '')
 const looksNumeric = (cell: string) => /^[\d\s.,/:+-]+$/.test(cell)
 const looksLikeData = (cell: string) => cell.includes('@') || cell.length > 40
 
-// Excel and CRM exports often carry a title or a "Generated …" line above the real
-// header. This mirrors packages/core's detectHeaderRow so the preview lands on the
-// same header the server will use — otherwise a preamble file previews as gibberish.
-// Ties go to the earliest row, because headers come first.
+// Mirrors packages/core's detectHeaderRow so a title/preamble above the header previews
+// on the same row the server will pick. Ties go to the earliest row.
 function detectHeaderRow(rows: readonly string[][], lookahead = 10): number {
   let best = 0
   let bestScore = -Infinity
@@ -60,11 +57,7 @@ function detectHeaderRow(rows: readonly string[][], lookahead = 10): number {
   return best
 }
 
-/**
- * Parses a CSV in the browser for the preview only — no network, no AI. It mirrors
- * the server's header-row detection, so a file with a title/preamble above the real
- * header previews the same rows that will actually be imported.
- */
+/** Parses the CSV in the browser for the preview only — no network, no AI. */
 export async function parsePreview(file: File): Promise<PreviewData> {
   const raw = await file.text()
   const text = raw.charCodeAt(0) === 0xfeff ? raw.slice(1) : raw

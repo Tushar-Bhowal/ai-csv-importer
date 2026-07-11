@@ -1,7 +1,5 @@
 import { cn } from '@/lib/utils'
 
-// Three source columns converging into one field — the product in one glyph.
-// currentColor throughout, so it follows the text color in both themes.
 export function BrandMark({ className }: { className?: string }) {
   return (
     <svg

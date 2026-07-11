@@ -7,8 +7,7 @@ export function PreviewTable({ headers, rows, totalRows }: PreviewData) {
 
   return (
     <div className="grid h-full min-h-0 min-w-0 grid-rows-[1fr_auto]">
-      {/* min-w-0 lets the table scroll inside this box instead of stretching the
-          dialog; overflow-auto gives both axes, the sticky header rides the y-scroll. */}
+      {/* min-w-0 lets the table scroll inside this box instead of stretching the dialog. */}
       <div className="min-h-0 min-w-0 overflow-auto">
         <table className="w-full border-collapse text-sm">
           <thead className="bg-card/95 sticky top-0 z-10 backdrop-blur">

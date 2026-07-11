@@ -165,7 +165,6 @@ export function Workspace({ fields, maxBytes }: { fields: readonly string[]; max
 
       {view === 'loading' && <LoadingState />}
 
-      {/* The upload screen is the base layer; the preview opens as a dialog over it. */}
       {(view === 'input' || view === 'preview') && (
         <div className="grid min-h-0 min-w-0 grid-rows-[auto_1fr] overflow-y-auto">
           {view === 'input' && state.kind === 'error' && !startingOver && (

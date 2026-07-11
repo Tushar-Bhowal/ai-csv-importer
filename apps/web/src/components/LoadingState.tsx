@@ -13,7 +13,6 @@ function Elapsed() {
     return () => clearInterval(id)
   }, [])
 
-  // Real time, not theater — the one number the client can honestly report.
   return (
     <span aria-hidden className="text-muted-foreground font-mono text-xs tabular-nums">
       {(tenths / 10).toFixed(1)}s

@@ -12,7 +12,6 @@ const SKIP_REASON_LABEL: Record<string, string> = {
   no_contact: 'No email and no mobile number',
 }
 
-// Wide free-text columns truncate with a tooltip instead of stretching the row.
 const TRUNCATED: Partial<Record<keyof CrmRecord, string>> = {
   name: 'max-w-[22ch]',
   email: 'max-w-[28ch]',
@@ -25,9 +24,7 @@ const TRUNCATED: Partial<Record<keyof CrmRecord, string>> = {
 
 const MONO_FIELDS = new Set<keyof CrmRecord>(['created_at', 'country_code', 'mobile_without_country_code'])
 
-// Rows are a fixed 44px (h-11, single-line cells), which is what makes windowing
-// arithmetic instead of measurement. Below the threshold the DOM is cheap enough
-// that windowing would only add moving parts.
+// Windowing is arithmetic, not measurement, so rows must stay a fixed height (h-11).
 const ROW_H = 44
 const VIRTUALIZE_OVER = 150
 const OVERSCAN = 12
@@ -133,9 +130,7 @@ export function DataGrid({
     return () => window.removeEventListener('resize', measure)
   }, [tab])
 
-  // A shrinking result set (new filter, tab switch) can leave the stored offset
-  // pointing past the content, which would window an empty slice until the next
-  // scroll event. Jumping to the top is also the expected filter behavior.
+  // A shrinking set can leave the offset past the content, so reset to the top on filter/tab change.
   useEffect(() => {
     panelRef.current?.scrollTo({ top: 0 })
     setScrollTop(0)

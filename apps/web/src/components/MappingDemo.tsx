@@ -3,7 +3,6 @@
 import { useReveal } from '@/components/charts/useReveal'
 import { cn } from '@/lib/utils'
 
-// Real header names from the eval fixtures, not lorem — the demo is the specimen.
 const ROWS = [
   { from: 'Full Name', to: 'name' },
   { from: 'E-mail Address', to: 'email' },
@@ -12,11 +11,7 @@ const ROWS = [
   { from: 'Enquiry Date', to: 'created_at' },
 ]
 
-/**
- * The product's one idea, drawn: arbitrary columns on the left mapped onto CRM
- * fields on the right. `hero` reveals once; `loop` keeps a dot travelling each
- * connector for as long as the mapping call runs.
- */
+// `hero` reveals once; `loop` keeps a dot travelling each connector while the call runs.
 export function MappingDemo({ variant = 'hero' }: { variant?: 'hero' | 'loop' }) {
   const shown = useReveal()
 

@@ -37,16 +37,13 @@ export const STATUS_ORDER = Object.keys(STATUS_META)
 
 export const humanizeField = (field: string) => field.replace(/_/g, ' ')
 
-// The chart ramp is the brand's own blues, defined for both themes, so an avatar
-// wash never needs a dark-mode override. Only the three lightest steps: chart-4/5
-// as text on a 15% wash of themselves fall under AA in dark mode.
+// Brand-blue ramp, defined per-theme. Only chart-1..3 clear AA as a 15% wash in dark mode.
 const AVATAR_TONES = [
   'bg-chart-1/15 text-chart-1',
   'bg-chart-2/15 text-chart-2',
   'bg-chart-3/15 text-chart-3',
 ]
 
-// Deterministic: the same lead gets the same tone on every render and re-import.
 export function avatarTone(seed: string): string {
   let hash = 0
   for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) | 0
