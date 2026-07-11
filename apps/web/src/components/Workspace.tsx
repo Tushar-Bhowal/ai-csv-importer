@@ -3,6 +3,7 @@
 import { InfoIcon } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
+import { BrandMark } from '@/components/BrandMark'
 import { DataGrid } from '@/components/DataGrid'
 import { EmptyState } from '@/components/EmptyState'
 import { Insights } from '@/components/Insights'
@@ -90,12 +91,16 @@ export function Workspace({ fields, maxBytes }: { fields: readonly string[]; max
     setState(INITIAL)
   }
 
-  // The only backend call, and only from the preview dialog's Confirm button.
-  async function runImport() {
+  // The only backend call: the preview dialog's Confirm, or a degraded result's
+  // re-run with the visitor's own key. The key lives in this state for the session
+  // only — it is a request header, never storage.
+  const [userKey, setUserKey] = useState('')
+
+  async function runImport(apiKey?: string) {
     if (!file || pending) return
     setPending(true)
     try {
-      setState({ kind: 'done', fileName: file.name, outcome: await importCsv(file) })
+      setState({ kind: 'done', fileName: file.name, outcome: await importCsv(file, apiKey) })
     } catch (err) {
       setState({ kind: 'error', message: failureMessage(err) })
     } finally {
@@ -124,7 +129,7 @@ export function Workspace({ fields, maxBytes }: { fields: readonly string[]; max
     <div className="grid h-dvh grid-rows-[auto_1fr] overflow-hidden">
       <header className="border-border bg-background/90 shadow-2xs z-20 flex items-center justify-between gap-4 border-b px-5 py-2.5 backdrop-blur">
         <div className="flex items-center gap-2.5">
-          <span aria-hidden className="from-chart-1 to-chart-3 size-6 rounded-md bg-linear-to-br" />
+          <BrandMark className="size-5" />
           <span className="font-display text-[0.95rem] font-semibold tracking-tight">
             CSV&nbsp;→&nbsp;CRM
           </span>
@@ -191,7 +196,7 @@ export function Workspace({ fields, maxBytes }: { fields: readonly string[]; max
         }}
       >
         {preview && (
-          <DialogContent className="grid max-h-[85vh] w-[calc(100%-2rem)] max-w-4xl grid-rows-[auto_1fr_auto] gap-0 overflow-hidden p-0">
+          <DialogContent className="grid max-h-[85vh] w-[calc(100%-2rem)] max-w-6xl grid-rows-[auto_1fr_auto] gap-0 overflow-hidden p-0">
             <div className="border-border border-b py-4 pr-12 pl-5">
               <DialogHeader>
                 <DialogTitle>Review before importing</DialogTitle>
@@ -216,7 +221,7 @@ export function Workspace({ fields, maxBytes }: { fields: readonly string[]; max
               <Button type="button" variant="outline" onClick={reset}>
                 Cancel
               </Button>
-              <Button type="button" onClick={runImport}>
+              <Button type="button" onClick={() => runImport()}>
                 Confirm import
               </Button>
             </DialogFooter>
@@ -231,7 +236,7 @@ export function Workspace({ fields, maxBytes }: { fields: readonly string[]; max
           aria-label={`Import complete. ${state.outcome.summary.imported} imported, ${state.outcome.summary.skipped} skipped.`}
           className="animate-in fade-in grid min-h-0 min-w-0 outline-none duration-500 lg:grid-cols-[minmax(280px,320px)_1fr]"
         >
-          <aside className="border-border bg-sidebar hidden min-h-0 overflow-auto border-r lg:block">
+          <aside className="border-border bg-sidebar scrollbar-hidden hidden min-h-0 overflow-auto border-r lg:block">
             <PlanRail
               plan={state.outcome.plan}
               summary={state.outcome.summary}
@@ -244,7 +249,7 @@ export function Workspace({ fields, maxBytes }: { fields: readonly string[]; max
           {/* min-w-0: a grid item's default min-width is its content, so without this
               the 15-column table stretches the column instead of scrolling inside it. */}
           <div className="grid min-h-0 min-w-0 grid-rows-[auto_1fr]">
-            <div className="border-border max-h-[46vh] overflow-y-auto border-b lg:max-h-none">
+            <div className="max-h-[46vh] overflow-y-auto lg:max-h-none">
               <details className="border-border border-b lg:hidden">
                 <summary className="focus-visible:outline-ring/50 cursor-pointer px-4 py-3 text-sm font-medium focus-visible:outline-2 sm:px-6">
                   Mapping plan — {state.outcome.plan.columns.length} columns mapped
@@ -268,21 +273,63 @@ export function Workspace({ fields, maxBytes }: { fields: readonly string[]; max
                 {state.outcome.summary.degraded && (
                   <Alert>
                     <InfoIcon aria-hidden />
-                    <AlertTitle>Heuristic mapping</AlertTitle>
+                    <AlertTitle>
+                      {state.outcome.summary.degradedReason === 'rate_limited'
+                        ? 'AI mapping is rate-limited right now'
+                        : state.outcome.summary.degradedReason === 'invalid_key'
+                          ? 'Gemini rejected the API key'
+                          : state.outcome.summary.degradedReason === 'timeout'
+                            ? 'The model took too long'
+                            : state.outcome.summary.degradedReason === 'no_key'
+                              ? 'No AI key is configured'
+                              : 'The AI mapping call failed'}
+                    </AlertTitle>
                     <AlertDescription>
-                      {state.outcome.summary.degradedReason === 'call_failed' ? (
-                        <>
-                          The AI mapping call failed, so columns were matched by name alone and an
-                          ambiguous date format may be read the wrong way round. Check that{' '}
-                          <code>GOOGLE_GENERATIVE_AI_API_KEY</code> is valid.
-                        </>
-                      ) : (
-                        <>
-                          No API key is set, so columns were matched by name alone and an ambiguous
-                          date format may be read the wrong way round. Set{' '}
-                          <code>GOOGLE_GENERATIVE_AI_API_KEY</code> to enable AI mapping.
-                        </>
-                      )}
+                      <p>
+                        {state.outcome.summary.degradedDetail}{' '}
+                        Columns were matched by name alone, so an ambiguous date format may be read
+                        the wrong way round.
+                      </p>
+
+                      <form
+                        className="mt-3 grid gap-2"
+                        onSubmit={(e) => {
+                          e.preventDefault()
+                          if (userKey.trim()) runImport(userKey.trim())
+                        }}
+                      >
+                        <p className="text-foreground text-sm font-medium">
+                          Have a{' '}
+                          <a
+                            href="https://aistudio.google.com/apikey"
+                            target="_blank"
+                            rel="noreferrer"
+                            className="underline underline-offset-2"
+                          >
+                            Gemini key
+                          </a>
+                          ? Re-run this import with it.
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          <input
+                            type="password"
+                            value={userKey}
+                            onChange={(e) => setUserKey(e.target.value)}
+                            placeholder="AIza…"
+                            aria-label="Your Gemini API key"
+                            autoComplete="off"
+                            spellCheck={false}
+                            className="border-input bg-background focus-visible:border-ring focus-visible:ring-ring/40 h-8 w-64 max-w-full rounded-lg border px-2.5 font-mono text-xs outline-none focus-visible:ring-3"
+                          />
+                          <Button type="submit" size="sm" disabled={!userKey.trim()}>
+                            Re-run with my key
+                          </Button>
+                        </div>
+                        <p className="text-muted-foreground text-xs">
+                          Sent with this one request over HTTPS, used in memory, never stored or
+                          logged — there is no database.
+                        </p>
+                      </form>
                     </AlertDescription>
                   </Alert>
                 )}

@@ -3,11 +3,17 @@
 import { useState, type RefObject } from 'react'
 
 import { FolderIllustration } from '@/components/FolderIllustration'
+import { MappingDemo } from '@/components/MappingDemo'
+import { WordPullUp } from '@/components/WordPullUp'
 import { cn } from '@/lib/utils'
 
-const SPECIMEN = [
-  ['First Name', 'Last Name', 'E-mail Address', 'Phone', 'Enquiry Date', 'Lead Status'],
-  ['name', 'crm_note', 'email', 'country_code + mobile', 'created_at', 'crm_status'],
+const HEADLINE = [
+  { word: 'Any' },
+  { word: 'CSV' },
+  { word: 'in.' },
+  { word: 'CRM‑ready', highlight: true },
+  { word: 'leads', highlight: true },
+  { word: 'out.' },
 ]
 
 interface EmptyStateProps {
@@ -47,19 +53,25 @@ export function EmptyState({
   }
 
   return (
-    <div className="grid flex-1 place-items-center px-4 py-8 sm:px-6 sm:py-12">
-      <div className="grid w-full max-w-2xl gap-6 sm:gap-8">
-        <div className="grid gap-3 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
-            Upload a CSV of leads
-          </h1>
-          <p className="text-muted-foreground text-sm text-pretty">
-            Any column names, in any order. The columns are read once, up front, and every row is
-            converted by code that cannot invent a value.
+    <div className="grid flex-1 place-items-center px-4 py-6 sm:px-6">
+      <div className="grid w-full max-w-3xl gap-5 sm:gap-6">
+        <div className="grid gap-2 text-center">
+          <WordPullUp
+            words={HEADLINE}
+            className="font-display text-3xl font-semibold tracking-tight text-balance sm:text-4xl"
+          />
+          <p
+            className="text-muted-foreground animate-in fade-in slide-in-from-bottom-2 fill-mode-both mx-auto max-w-xl text-sm text-pretty duration-500"
+            style={{ animationDelay: '550ms' }}
+          >
+            The model reads your columns once and names a mapping plan. Deterministic code
+            converts every row — it cannot invent a value.
           </p>
         </div>
 
         <div
+          className="animate-in fade-in slide-in-from-bottom-3 fill-mode-both duration-500"
+          style={{ animationDelay: '750ms' }}
           onDragOver={(e) => {
             e.preventDefault()
             if (!pending) setDragging(true)
@@ -69,7 +81,7 @@ export function EmptyState({
         >
           <label
             className={cn(
-              'grid place-items-center gap-4 rounded-2xl border-2 border-dashed px-4 py-10 text-center transition-colors sm:gap-5 sm:px-6 sm:py-14',
+              'grid place-items-center gap-3 rounded-2xl border-2 border-dashed px-4 py-6 text-center transition-colors sm:px-6 sm:py-7',
               'focus-within:outline-ring/50 focus-within:outline-2 focus-within:outline-offset-4',
               dragging
                 ? 'border-primary bg-accent'
@@ -85,33 +97,31 @@ export function EmptyState({
               aria-hidden
               width={160}
               height={160}
-              className="size-32 max-w-full sm:size-40 motion-reduce:hidden"
+              className="size-24 max-w-full sm:size-28 motion-reduce:hidden"
             />
-            <FolderIllustration className="hidden size-32 max-w-full sm:size-40 motion-reduce:block" />
+            <FolderIllustration className="hidden size-24 max-w-full sm:size-28 motion-reduce:block" />
 
-            <div className="grid gap-1">
-              {file ? (
-                <>
-                  <p className="text-sm font-medium">{file.name}</p>
-                  <p className="text-muted-foreground text-sm tabular-nums">
-                    {(file.size / 1024).toFixed(0)} KB · choose another file
-                  </p>
-                </>
-              ) : (
-                <>
-                  <p className="text-sm">
-                    Drag and drop or{' '}
-                    <span className="text-accent-foreground font-semibold underline underline-offset-2">
-                      choose file
-                    </span>{' '}
-                    to upload.
-                  </p>
-                  <p className="text-muted-foreground text-sm">
-                    File format : CSV. Max {(maxBytes / 1024 / 1024).toFixed(1)} MB
-                  </p>
-                </>
-              )}
-            </div>
+            {file ? (
+              <span className="grid gap-0.5">
+                <span className="text-sm font-medium">{file.name}</span>
+                <span className="text-muted-foreground text-xs tabular-nums">
+                  {(file.size / 1024).toFixed(0)} KB · choose another file
+                </span>
+              </span>
+            ) : (
+              <span className="grid gap-0.5">
+                <span className="text-sm">
+                  Drag and drop or{' '}
+                  <span className="text-accent-foreground font-semibold underline underline-offset-2">
+                    choose a file
+                  </span>
+                </span>
+                <span className="text-muted-foreground text-xs">
+                  CSV · up to {(maxBytes / 1024 / 1024).toFixed(1)} MB · previewed before anything
+                  is sent
+                </span>
+              </span>
+            )}
 
             <input
               ref={inputRef}
@@ -125,24 +135,21 @@ export function EmptyState({
           </label>
         </div>
 
-        <div className="border-border grid gap-2 border-t pt-6">
-          <p className="text-muted-foreground text-xs">What that looks like</p>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <tbody>
-                {SPECIMEN.map((row, i) => (
-                  <tr key={i} className={i === 0 ? 'text-muted-foreground' : ''}>
-                    {row.map((c) => (
-                      <td key={c} className="py-1 pr-4 whitespace-nowrap">
-                        {i === 1 ? <code>{c}</code> : c}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <aside
+          className="border-border bg-card shadow-xs animate-in fade-in slide-in-from-bottom-3 fill-mode-both grid gap-3 rounded-2xl border p-4 duration-500 sm:px-5"
+          style={{ animationDelay: '950ms' }}
+        >
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-[11px] font-medium tracking-wide uppercase">The mapping plan</h2>
+            <p className="text-muted-foreground text-xs">
+              Column names only — never your data.
+            </p>
           </div>
-        </div>
+          <MappingDemo />
+          <p className="border-border text-muted-foreground border-t pt-2.5 text-[11px]">
+            Decided once per file by the model, then applied to every row by code.
+          </p>
+        </aside>
       </div>
     </div>
   )

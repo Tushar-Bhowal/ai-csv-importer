@@ -14,11 +14,11 @@ export const metadata: Metadata = {
 }
 
 // Runs before the body paints, so the theme is applied with no flash of the wrong
-// one. A saved choice (the toggle) wins; otherwise the OS preference decides. The
-// .dark token block and the components' `dark:` variants both key on this class, so
-// it must sit on the element. suppressHydrationWarning covers the class React did
+// one. A saved choice (the toggle) wins; otherwise dark is the default. The .dark
+// token block and the components' `dark:` variants both key on this class, so it
+// must sit on the element. suppressHydrationWarning covers the class React did
 // not itself render.
-const applyColorScheme = `try{var t=localStorage.getItem('theme');if(t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches))document.documentElement.classList.add('dark')}catch(e){}`
+const applyColorScheme = `try{if(localStorage.getItem('theme')!=='light')document.documentElement.classList.add('dark')}catch(e){document.documentElement.classList.add('dark')}`
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (

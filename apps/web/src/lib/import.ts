@@ -27,10 +27,14 @@ interface ErrorEnvelope {
  * import would pull the barrel — and with it the AI SDK, papaparse, libphonenumber-js
  * and date-fns — into the browser bundle.
  */
-export async function importCsv(file: File): Promise<ImportOutcome> {
+export async function importCsv(file: File, apiKey?: string): Promise<ImportOutcome> {
   const response = await fetch(`${API_URL}/api/v1/import`, {
     method: 'POST',
-    headers: { 'Content-Type': 'text/csv' },
+    headers: {
+      'Content-Type': 'text/csv',
+      // The visitor's own Gemini key rides this one request and is never kept.
+      ...(apiKey ? { 'X-Llm-Api-Key': apiKey } : {}),
+    },
     body: file,
     signal: AbortSignal.timeout(IMPORT_TIMEOUT_MS),
   })

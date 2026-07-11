@@ -1,11 +1,13 @@
 import { ArrowLeftIcon } from 'lucide-react'
 import Link from 'next/link'
 
+import { BrandMark } from '@/components/BrandMark'
+
 export default function NotFound() {
   return (
     <main className="bg-background grid min-h-dvh place-items-center px-6 py-12">
       <div className="animate-in fade-in slide-in-from-bottom-3 grid max-w-md justify-items-center gap-6 text-center duration-500">
-        <span aria-hidden className="from-chart-1 to-chart-3 size-9 rounded-lg bg-linear-to-br" />
+        <BrandMark className="size-9" />
 
         <div className="grid gap-2.5">
           <p className="text-muted-foreground font-mono text-xs tracking-[0.2em] uppercase">
