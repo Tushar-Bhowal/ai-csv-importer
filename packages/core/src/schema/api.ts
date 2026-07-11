@@ -22,8 +22,13 @@ export type SkippedRow = z.infer<typeof SkippedRowSchema>
 
 export const DEGRADED_REASONS = [
   'no_key', // nobody configured one; the app is meant to work anyway
-  'call_failed', // a key exists but the model refused, timed out, or was rejected
+  'rate_limited', // 429 — the key's quota is spent right now
+  'invalid_key', // 400/401/403 — Gemini rejected the key itself
+  'timeout', // the model did not answer inside the in-code deadline
+  'call_failed', // anything else: refusal, malformed object, network
 ] as const
+
+export type DegradedReason = (typeof DEGRADED_REASONS)[number]
 
 export const ImportSummarySchema = z.object({
   totalRows: z.number().int().min(0),
@@ -34,6 +39,8 @@ export const ImportSummarySchema = z.object({
   degraded: z.boolean(),
   /** Present only when `degraded`. The UI must not guess which it was. */
   degradedReason: z.enum(DEGRADED_REASONS).optional(),
+  /** One safe human sentence — built from the status code, never Gemini's raw body. */
+  degradedDetail: z.string().optional(),
 })
 
 export type ImportSummary = z.infer<typeof ImportSummarySchema>

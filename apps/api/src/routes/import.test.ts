@@ -86,6 +86,7 @@ describe('POST /api/v1/import', () => {
     // No key was set, so the mapping degrades to the heuristic and says why.
     expect(summary.degraded).toBe(true)
     expect(summary.degradedReason).toBe('no_key')
+    expect(summary.degradedDetail).toBeTruthy()
     expect(summary.llmCalls).toBe(0)
   })
 })

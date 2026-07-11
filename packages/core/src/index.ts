@@ -24,7 +24,7 @@ export {
   SKIP_REASONS,
   SkippedRowSchema,
 } from './schema/api.js'
-export type { ImportResult, ImportSummary, SkippedRow } from './schema/api.js'
+export type { DegradedReason, ImportResult, ImportSummary, SkippedRow } from './schema/api.js'
 
 export { decodeCsvBuffer } from './parse/decode.js'
 export { detectHeaderRow } from './parse/detectHeaderRow.js'
@@ -32,8 +32,8 @@ export { parseCsv } from './parse/parseCsv.js'
 export type { CsvRow, ParsedCsv } from './parse/parseCsv.js'
 
 export { heuristicPlan } from './mapping/heuristic.js'
-export { hasLlmKey, refinePlan } from './mapping/llm.js'
-export type { RefinePlanOptions } from './mapping/llm.js'
+export { categorizeLlmFailure, hasLlmKey, refinePlan } from './mapping/llm.js'
+export type { LlmFailure, RefinePlanOptions } from './mapping/llm.js'
 export { sampleRows } from './mapping/sample.js'
 
 export { applyPlan } from './transform/applyPlan.js'

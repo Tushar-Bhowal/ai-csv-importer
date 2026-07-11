@@ -2,6 +2,7 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { APICallError, generateObject, NoObjectGeneratedError, RetryError } from 'ai'
 
 import type { CsvRow } from '../parse/parseCsv.js'
+import type { DegradedReason } from '../schema/api.js'
 import { fromDraft, PlanDraftSchema, sanitizePlan, toDraft, type MappingPlan } from '../schema/plan.js'
 import { heuristicPlan } from './heuristic.js'
 import { buildPrompt, MAX_PROMPT_COLUMNS, SYSTEM_PROMPT } from './prompt.js'
@@ -38,9 +39,19 @@ const MAX_RETRY_AFTER_MS = TIMEOUT_MS / 2
 
 const MAX_LOGGED_BODY = 400
 
+export interface LlmFailure {
+  reason: DegradedReason
+  /** One safe human sentence, built from the status code — never Gemini's raw body. */
+  detail: string
+}
+
 export interface RefinePlanOptions {
   headerRowIndex?: number
   signal?: AbortSignal
+  /** A caller-supplied key wins over the environment's, for this one call only. */
+  apiKey?: string
+  /** Called at most once, when the plan falls back to the heuristic. */
+  onDegraded?: (failure: LlmFailure) => void
 }
 
 const oneLine = (text: string) => text.replace(/\s+/g, ' ').slice(0, MAX_LOGGED_BODY)
@@ -146,6 +157,44 @@ function describeLlmError(error: unknown): string {
 }
 
 /**
+ * Names why the model was abandoned, in a form safe to send to the browser: a
+ * category and one sentence built from the status code. Gemini's raw error body
+ * can carry the key owner's project identifiers, so it never leaves the server.
+ */
+export function categorizeLlmFailure(error: unknown): LlmFailure {
+  if (RetryError.isInstance(error)) return categorizeLlmFailure(error.lastError)
+
+  if (APICallError.isInstance(error)) {
+    const status = error.statusCode
+    if (status === 429 || status === 503) {
+      return {
+        reason: 'rate_limited',
+        detail: `Gemini answered HTTP ${status} — the key's quota is used up or the model is overloaded right now.`,
+      }
+    }
+    // Gemini reports a bad key as 400 API_KEY_INVALID, not only as 401/403.
+    if (status === 401 || status === 403 || (status === 400 && /api.?key/i.test(error.responseBody ?? ''))) {
+      return { reason: 'invalid_key', detail: `Gemini rejected the API key (HTTP ${status}).` }
+    }
+    return { reason: 'call_failed', detail: `The mapping call failed (HTTP ${status ?? 'error'}).` }
+  }
+
+  if (error instanceof Error && error.name === 'TimeoutError') {
+    return { reason: 'timeout', detail: `The model did not answer within ${TIMEOUT_MS / 1000} seconds.` }
+  }
+
+  // loggingFetch bails out of an unpayable retry-after with a plain Error.
+  if (error instanceof Error && error.message.startsWith('gemini asked to wait')) {
+    return {
+      reason: 'rate_limited',
+      detail: "Gemini asked for a longer wait than the request budget allows — the key's quota is used up right now.",
+    }
+  }
+
+  return { reason: 'call_failed', detail: 'The mapping call failed before the model answered.' }
+}
+
+/**
  * One AI call per file. The model reads the headers and a sample of rows and
  * returns column names, a date format and enum maps — never a data value, which
  * is why a cell reading "ignore previous instructions" cannot reach the output.
@@ -164,8 +213,9 @@ export async function refinePlan(
     sampleRows: sample,
   })
 
-  if (!hasLlmKey()) {
+  if (!options.apiKey && !hasLlmKey()) {
     console.warn('[core] GOOGLE_GENERATIVE_AI_API_KEY is not set; using the heuristic plan')
+    options.onDegraded?.({ reason: 'no_key', detail: 'No Gemini key is configured on the server.' })
     return fallback
   }
 
@@ -175,9 +225,14 @@ export async function refinePlan(
 
   const startedAt = performance.now()
 
+  // A caller's key exists for exactly one call; only the env-keyed provider is shared.
+  const provider = options.apiKey
+    ? createGoogleGenerativeAI({ apiKey: options.apiKey, fetch: loggingFetch })
+    : google
+
   try {
     const { object, usage } = await generateObject({
-      model: google(MODEL),
+      model: provider(MODEL),
       schema: PlanDraftSchema,
       system: SYSTEM_PROMPT,
       prompt: buildPrompt({ headers, sample, draft: toDraft(fallback) }),
@@ -201,6 +256,7 @@ export async function refinePlan(
     // The upload must succeed without the model, and the caller reads `degraded`.
     // But a key that is merely wrong would degrade every import in silence.
     console.warn(`[core] mapping call failed — ${describeLlmError(error)}; using the heuristic plan`)
+    options.onDegraded?.(categorizeLlmFailure(error))
     return fallback
   }
 }

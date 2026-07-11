@@ -3,12 +3,12 @@ import {
   AppError,
   CRM_FIELDS,
   csvSafe,
-  hasLlmKey,
   MAX_UPLOAD_BYTES,
   parseCsv,
   refinePlan,
   type CrmRecord,
   type ImportResult,
+  type LlmFailure,
 } from '@groweasy/core'
 import express, { Router } from 'express'
 
@@ -59,9 +59,18 @@ importRouter.post(
       if (!res.writableEnded) disconnected.abort()
     })
 
+    // A visitor's own Gemini key, for this request only: read from the header,
+    // handed to the provider, never stored and never logged.
+    const userKey = req.get('x-llm-api-key')?.trim() || undefined
+
+    let failure: LlmFailure | undefined
     const plan = await refinePlan(parsed.headers, parsed.rows, {
       headerRowIndex: parsed.headerRowIndex,
       signal: disconnected.signal,
+      ...(userKey ? { apiKey: userKey } : {}),
+      onDegraded: (f) => {
+        failure = f
+      },
     })
 
     // refinePlan degrades rather than throws, so an abort lands here as a heuristic
@@ -82,8 +91,7 @@ importRouter.post(
         durationMs: performance.now() - startedAt,
         llmCalls: plan.degraded ? 0 : 1,
         degraded: plan.degraded,
-        // refinePlan degrades for exactly two reasons, and only this process knows the key.
-        ...(plan.degraded ? { degradedReason: hasLlmKey() ? 'call_failed' : 'no_key' } : {}),
+        ...(failure ? { degradedReason: failure.reason, degradedDetail: failure.detail } : {}),
       },
       csv: toCsv(records),
     }

@@ -1,7 +1,8 @@
+import { APICallError, RetryError } from 'ai'
 import { describe, expect, it } from 'vitest'
 
 import type { MappingPlan } from '../schema/plan.js'
-import { preserveOverflow, retryAfterMs } from './llm.js'
+import { categorizeLlmFailure, preserveOverflow, retryAfterMs } from './llm.js'
 
 const plan = (over: Partial<MappingPlan> = {}): MappingPlan => ({
   columns: [],
@@ -33,6 +34,55 @@ describe('retryAfterMs', () => {
     expect(ms).not.toBeNull()
     expect(ms as number).toBeGreaterThan(15_000)
     expect(ms as number).toBeLessThanOrEqual(20_000)
+  })
+})
+
+describe('categorizeLlmFailure', () => {
+  const apiError = (statusCode: number, responseBody?: string) =>
+    new APICallError({
+      message: 'call failed',
+      url: 'https://example.test',
+      requestBodyValues: {},
+      statusCode,
+      ...(responseBody === undefined ? {} : { responseBody }),
+    })
+
+  it('names a 429 as rate_limited', () => {
+    expect(categorizeLlmFailure(apiError(429)).reason).toBe('rate_limited')
+  })
+
+  it("names Gemini's 400 API_KEY_INVALID as invalid_key, other 400s as call_failed", () => {
+    expect(categorizeLlmFailure(apiError(400, 'API key not valid. [API_KEY_INVALID]')).reason).toBe('invalid_key')
+    expect(categorizeLlmFailure(apiError(400, 'malformed request')).reason).toBe('call_failed')
+    expect(categorizeLlmFailure(apiError(403)).reason).toBe('invalid_key')
+  })
+
+  it('unwraps a RetryError to its last attempt', () => {
+    const wrapped = new RetryError({
+      message: 'retries exhausted',
+      reason: 'maxRetriesExceeded',
+      errors: [apiError(503), apiError(429)],
+    })
+    expect(categorizeLlmFailure(wrapped).reason).toBe('rate_limited')
+  })
+
+  it('names our own deadline as timeout', () => {
+    const timeout = Object.assign(new Error('signal timed out'), { name: 'TimeoutError' })
+    expect(categorizeLlmFailure(timeout).reason).toBe('timeout')
+  })
+
+  it('names an unpayable retry-after bail-out as rate_limited', () => {
+    expect(categorizeLlmFailure(new Error('gemini asked to wait 25s, longer than the 30s budget')).reason).toBe('rate_limited')
+  })
+
+  it('never leaks the response body into the detail', () => {
+    const failure = categorizeLlmFailure(apiError(429, 'quota for project 123456789 exhausted'))
+    expect(failure.detail).not.toContain('123456789')
+  })
+
+  it('falls back to call_failed for anything else', () => {
+    expect(categorizeLlmFailure(new Error('socket hang up')).reason).toBe('call_failed')
+    expect(categorizeLlmFailure(undefined).reason).toBe('call_failed')
   })
 })
 
