@@ -12,6 +12,7 @@ next-env.d.ts
 CLAUDE.md
 docs/INTERVIEW.md
 docs/RESUME.md
+docs/VERIFICATION.md
 .claude/
 .agents/
 skills-lock.json
