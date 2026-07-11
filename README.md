@@ -88,6 +88,10 @@ cannot flip an enum — the plan names columns, so a cell value has no path to a
 The latency is dominated by Gemini free-tier `503 "high demand"` throttling and the 20-requests/day
 quota, not by the model itself; a paid key is markedly faster.
 
+Run it yourself: `npm run eval` (with a key). Every fixture, its trap, and the expected output for
+each cell live in [`eval/`](eval/) — `run.ts` scores the two mappers against `expected.ts` on the
+same files and prints the table above.
+
 ## The API
 
 The browser posts the CSV straight to Express. The file crosses the network once, and the Gemini key
@@ -108,6 +112,11 @@ curl -X POST http://localhost:3001/api/v1/import \
 `packages/core`. There is no multipart parse: nothing but our own web app calls this route, and it
 holds the bytes already. `express.raw` enforces the 4 MB cap *during* the stream.
 
+An optional `X-Llm-Api-Key` header runs the mapping call with the caller's own Gemini key for that
+one request — it is read once, handed to the provider, and never stored or logged. When the mapping
+degrades to the heuristic, `summary.degradedReason` says exactly why (`no_key`, `rate_limited`,
+`invalid_key`, `timeout`, `call_failed`) and the UI offers the bring-your-own-key re-run.
+
 Every failure answers with one envelope, `{ error: { code, message, requestId } }`:
 
 | | |
@@ -123,7 +132,9 @@ Every failure answers with one envelope, `{ error: { code, message, requestId } 
 For the mapping call, a sample of up to ~30 rows of the uploaded CSV — real lead data, including
 names, emails, and phone numbers — is sent to Google's Gemini API. No row is stored: the app is
 stateless, holds nothing after the response, and the model returns only column names, a format
-string, and enum maps, never row data. The API key stays server-side and never reaches the browser.
+string, and enum maps, never row data. The server's API key stays server-side and never reaches the
+browser. A visitor's own key (the degraded-result re-run) travels once per request in a header over
+HTTPS, is used in memory, and is never stored or logged.
 
 ## Layout
 
