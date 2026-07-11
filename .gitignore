@@ -10,6 +10,7 @@ next-env.d.ts
 .env.*.local
 
 CLAUDE.md
+BACKLOG.md
 docs/INTERVIEW.md
 docs/RESUME.md
 docs/VERIFICATION.md
