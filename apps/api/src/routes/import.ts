@@ -12,8 +12,6 @@ import {
 } from '@groweasy/core'
 import express, { Router } from 'express'
 
-const PREVIEW_ROWS = 5
-
 const crmDateTime = (d: Date): string =>
   `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(
     d.getUTCDate(),
@@ -74,7 +72,6 @@ importRouter.post(
 
     const result: ImportResult = {
       headers: parsed.headers,
-      previewRows: parsed.rows.slice(0, PREVIEW_ROWS).map((r) => r.cells),
       plan,
       records,
       skipped,

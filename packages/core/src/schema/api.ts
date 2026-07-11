@@ -40,7 +40,6 @@ export type ImportSummary = z.infer<typeof ImportSummarySchema>
 
 export const ImportResultSchema = z.object({
   headers: z.array(z.string()),
-  previewRows: z.array(z.record(z.string(), z.string())),
   plan: MappingPlanSchema,
   records: z.array(CrmRecordSchema),
   skipped: z.array(SkippedRowSchema),

@@ -6,7 +6,6 @@ const IMPORT_TIMEOUT_MS = 60_000
 
 export interface ImportOutcome {
   headers: string[]
-  previewRows: Record<string, string>[]
   plan: MappingPlan
   records: CrmRecord[]
   skipped: SkippedRow[]
