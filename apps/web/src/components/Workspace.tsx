@@ -8,10 +8,20 @@ import { EmptyState } from '@/components/EmptyState'
 import { Insights } from '@/components/Insights'
 import { LoadingState } from '@/components/LoadingState'
 import { PlanRail } from '@/components/PlanRail'
+import { PreviewTable } from '@/components/PreviewTable'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { importCsv, type ImportState } from '@/lib/import'
+import { parsePreview, PreviewError, type PreviewData } from '@/lib/preview'
 
 const INITIAL: ImportState = { kind: 'idle' }
 
@@ -32,16 +42,72 @@ function failureMessage(err: unknown): string {
 export function Workspace({ fields, maxBytes }: { fields: readonly string[]; maxBytes: number }) {
   const [state, setState] = useState<ImportState>(INITIAL)
   const [pending, setPending] = useState(false)
+  const [parsing, setParsing] = useState(false)
   const [file, setFile] = useState<File | null>(null)
+  const [preview, setPreview] = useState<PreviewData | null>(null)
   const [startingOver, setStartingOver] = useState(false)
 
   const showResult = state.kind === 'done' && !pending && !startingOver
 
-  // Each view swap unmounts the control that had focus (Import, then New import),
-  // which drops focus to <body>. Move it onto the content that replaced them, so a
-  // keyboard user keeps their place. Not on first paint, and not on a validation
-  // error — that never leaves the input view, so there is nothing to catch up to.
-  const view = pending ? 'loading' : showResult ? 'result' : 'input'
+  // Parse in the browser the moment a file is chosen — no network, no AI — so the
+  // preview and the Confirm gate come before the backend is ever called. The
+  // authoritative parse still runs server-side on confirm.
+  async function choose(next: File | null) {
+    setStartingOver(false)
+    setState(INITIAL)
+    setPreview(null)
+    setFile(next)
+    if (!next) return
+
+    if (next.size === 0) {
+      setState({ kind: 'error', message: 'Choose a CSV file to import.' })
+      setFile(null)
+      return
+    }
+    if (next.size > maxBytes) {
+      setState({ kind: 'error', message: `That file is ${MB(next.size)}. The limit is ${MB(maxBytes)}.` })
+      setFile(null)
+      return
+    }
+
+    setParsing(true)
+    try {
+      setPreview(await parsePreview(next))
+    } catch (err) {
+      setState({
+        kind: 'error',
+        message: err instanceof PreviewError ? err.message : 'That file could not be read as CSV.',
+      })
+      setFile(null)
+    } finally {
+      setParsing(false)
+    }
+  }
+
+  function reset() {
+    setFile(null)
+    setPreview(null)
+    setState(INITIAL)
+  }
+
+  // The only backend call, and only from the preview dialog's Confirm button.
+  async function runImport() {
+    if (!file || pending) return
+    setPending(true)
+    try {
+      setState({ kind: 'done', fileName: file.name, outcome: await importCsv(file) })
+    } catch (err) {
+      setState({ kind: 'error', message: failureMessage(err) })
+    } finally {
+      setPending(false)
+    }
+  }
+
+  const view = pending ? 'loading' : showResult ? 'result' : preview ? 'preview' : 'input'
+
+  // The dialog traps and restores focus itself. These two views are plain regions,
+  // so move focus onto whichever one replaced the last — not on first paint, and
+  // not on a same-view re-render — so a keyboard user keeps their place.
   const dropzoneRef = useRef<HTMLInputElement>(null)
   const resultRef = useRef<HTMLDivElement>(null)
   const prevView = useRef<typeof view | null>(null)
@@ -54,34 +120,8 @@ export function Workspace({ fields, maxBytes }: { fields: readonly string[]; max
     else if (view === 'input') dropzoneRef.current?.focus()
   }, [view])
 
-  async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setStartingOver(false)
-
-    if (!file || file.size === 0) {
-      setState({ kind: 'error', message: 'Choose a CSV file to import.' })
-      return
-    }
-    if (file.size > maxBytes) {
-      setState({
-        kind: 'error',
-        message: `That file is ${MB(file.size)}. The limit is ${MB(maxBytes)}.`,
-      })
-      return
-    }
-
-    setPending(true)
-    try {
-      setState({ kind: 'done', fileName: file.name, outcome: await importCsv(file) })
-    } catch (err) {
-      setState({ kind: 'error', message: failureMessage(err) })
-    } finally {
-      setPending(false)
-    }
-  }
-
   return (
-    <form onSubmit={onSubmit} className="grid h-dvh grid-rows-[auto_1fr] overflow-hidden">
+    <div className="grid h-dvh grid-rows-[auto_1fr] overflow-hidden">
       <header className="border-border bg-background/90 shadow-2xs z-20 flex items-center justify-between gap-4 border-b px-5 py-2.5 backdrop-blur">
         <div className="flex items-center gap-2.5">
           <span aria-hidden className="from-chart-1 to-chart-3 size-6 rounded-md bg-linear-to-br" />
@@ -108,7 +148,7 @@ export function Workspace({ fields, maxBytes }: { fields: readonly string[]; max
               variant="outline"
               size="sm"
               onClick={() => {
-                setFile(null)
+                reset()
                 setStartingOver(true)
               }}
             >
@@ -118,11 +158,12 @@ export function Workspace({ fields, maxBytes }: { fields: readonly string[]; max
         </div>
       </header>
 
-      {pending && <LoadingState />}
+      {view === 'loading' && <LoadingState />}
 
-      {!pending && !showResult && (
+      {/* The upload screen is the base layer; the preview opens as a dialog over it. */}
+      {(view === 'input' || view === 'preview') && (
         <div className="grid min-h-0 min-w-0 grid-rows-[auto_1fr] overflow-y-auto">
-          {state.kind === 'error' && !startingOver && (
+          {view === 'input' && state.kind === 'error' && !startingOver && (
             <div className="px-4 pt-6 sm:px-6">
               <Alert variant="destructive" className="mx-auto max-w-xl">
                 <AlertTitle>That file could not be imported</AlertTitle>
@@ -132,14 +173,56 @@ export function Workspace({ fields, maxBytes }: { fields: readonly string[]; max
           )}
           <EmptyState
             name="file"
-            pending={pending}
+            pending={parsing}
             file={file}
             maxBytes={maxBytes}
             inputRef={dropzoneRef}
-            onFileChosen={setFile}
+            onFileChosen={choose}
           />
         </div>
       )}
+
+      <Dialog
+        open={view === 'preview'}
+        onOpenChange={(open) => {
+          // Escape, the backdrop, or the ✕ close it. Starting the import also closes
+          // it, but that path sets `pending` first, so it must not reset the file.
+          if (!open && !pending && !showResult) reset()
+        }}
+      >
+        {preview && (
+          <DialogContent className="grid max-h-[85vh] w-[calc(100%-2rem)] max-w-4xl grid-rows-[auto_1fr_auto] gap-0 overflow-hidden p-0">
+            <div className="border-border border-b py-4 pr-12 pl-5">
+              <DialogHeader>
+                <DialogTitle>Review before importing</DialogTitle>
+                <DialogDescription>
+                  Read in your browser — {preview.totalRows.toLocaleString()} rows,{' '}
+                  {preview.headers.length} columns. Nothing is sent until you confirm.
+                </DialogDescription>
+              </DialogHeader>
+              {state.kind === 'error' && !startingOver && (
+                <Alert variant="destructive" className="mt-3">
+                  <AlertTitle>That file could not be imported</AlertTitle>
+                  <AlertDescription>{state.message}</AlertDescription>
+                </Alert>
+              )}
+            </div>
+
+            <div className="min-h-0 min-w-0 overflow-hidden">
+              <PreviewTable {...preview} />
+            </div>
+
+            <DialogFooter className="border-border border-t px-5 py-3">
+              <Button type="button" variant="outline" onClick={reset}>
+                Cancel
+              </Button>
+              <Button type="button" onClick={runImport}>
+                Confirm import
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        )}
+      </Dialog>
 
       {showResult && (
         <div
@@ -180,7 +263,6 @@ export function Workspace({ fields, maxBytes }: { fields: readonly string[]; max
                   records={state.outcome.records}
                   skipped={state.outcome.skipped}
                   summary={state.outcome.summary}
-                  fields={fields}
                 />
 
                 {state.outcome.summary.degraded && (
@@ -215,6 +297,6 @@ export function Workspace({ fields, maxBytes }: { fields: readonly string[]; max
           </div>
         </div>
       )}
-    </form>
+    </div>
   )
 }

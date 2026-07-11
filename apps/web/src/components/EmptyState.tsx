@@ -3,7 +3,6 @@
 import { useState, type RefObject } from 'react'
 
 import { FolderIllustration } from '@/components/FolderIllustration'
-import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 const SPECIMEN = [
@@ -124,12 +123,6 @@ export function EmptyState({
               className="sr-only"
             />
           </label>
-        </div>
-
-        <div className="flex justify-center">
-          <Button type="submit" size="lg" disabled={!file || pending}>
-            {pending ? 'Reading…' : 'Import'}
-          </Button>
         </div>
 
         <div className="border-border grid gap-2 border-t pt-6">

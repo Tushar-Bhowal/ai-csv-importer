@@ -36,17 +36,3 @@ export const STATUS_META: Record<string, StatusMeta> = {
 export const STATUS_ORDER = Object.keys(STATUS_META)
 
 export const humanizeField = (field: string) => field.replace(/_/g, ' ')
-
-// Tight labels for the completeness list, where a long name would just truncate.
-const SHORT_FIELD: Record<string, string> = {
-  mobile_without_country_code: 'mobile',
-  country_code: 'country code',
-  created_at: 'created',
-  crm_status: 'status',
-  crm_note: 'note',
-  data_source: 'source',
-  possession_time: 'possession',
-  lead_owner: 'lead owner',
-}
-
-export const shortField = (field: string) => SHORT_FIELD[field] ?? humanizeField(field)
